@@ -3,6 +3,10 @@
 #include "Module.h"
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
+#include <fstream>
+#include <sstream>
+#include <string>
+
 class Render : public Module
 {
 public:
@@ -30,4 +34,16 @@ public:
 
     // Called before quitting
     bool CleanUp() override;
+
+
+
+    GLuint VAO = 0;
+    GLuint VBO = 0;
+    GLuint shaderProgram = 0;
+
+private:
+
+    GLuint CompileShader(GLenum type, const char* source);
+    std::string LoadShaderSource(const char* path);
+
 };
