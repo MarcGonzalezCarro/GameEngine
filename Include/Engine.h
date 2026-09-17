@@ -12,6 +12,7 @@ class Render;
 class Textures;
 class Audio;
 class Scene;
+class Editor;
 
 class Engine
 {
@@ -79,6 +80,7 @@ public:
 	std::shared_ptr<Window> window;
 	std::shared_ptr<Input> input;
 	std::shared_ptr<Render> render;
+	std::shared_ptr<Editor> editor;
 	/*std::shared_ptr<Textures> textures;
 	std::shared_ptr<Audio> audio;
 	std::shared_ptr<Scene> scene;*/

@@ -5,6 +5,7 @@
 #include "Window.h"
 #include "Input.h"
 #include "Render.h"
+#include "Editor.h"
 //#include "Textures.h"
 //#include "Audio.h"
 //#include "Scene.h"
@@ -19,6 +20,7 @@ Engine::Engine() {
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
     render = std::make_shared<Render>();
+    editor = std::make_shared<Editor>();
     /*textures = std::make_shared<Textures>();
     audio = std::make_shared<Audio>();
     scene = std::make_shared<Scene>();*/
@@ -33,7 +35,7 @@ Engine::Engine() {
 
     // Render last 
     AddModule(std::static_pointer_cast<Module>(render));
-
+    AddModule(std::static_pointer_cast<Module>(editor));
 }
 
 // Static method to get the instance of the Engine class, following the singletn pattern
