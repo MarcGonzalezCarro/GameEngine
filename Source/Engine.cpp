@@ -4,7 +4,7 @@
 
 #include "Window.h"
 #include "Input.h"
-//#include "Render.h"
+#include "Render.h"
 //#include "Textures.h"
 //#include "Audio.h"
 //#include "Scene.h"
@@ -18,8 +18,8 @@ Engine::Engine() {
     // Modules
     window = std::make_shared<Window>();
     input = std::make_shared<Input>();
-    /*render = std::make_shared<Render>();
-    textures = std::make_shared<Textures>();
+    render = std::make_shared<Render>();
+    /*textures = std::make_shared<Textures>();
     audio = std::make_shared<Audio>();
     scene = std::make_shared<Scene>();*/
 
@@ -32,7 +32,7 @@ Engine::Engine() {
     AddModule(std::static_pointer_cast<Module>(scene));*/
 
     // Render last 
-    /*AddModule(std::static_pointer_cast<Module>(render));*/
+    AddModule(std::static_pointer_cast<Module>(render));
 
 }
 
@@ -126,7 +126,7 @@ void Engine::PrepareUpdate()
 // ---------------------------------------------
 void Engine::FinishUpdate()
 {
-
+    
 }
 
 // Call modules before each loop iteration
@@ -173,3 +173,6 @@ bool Engine::PostUpdate()
 
     return result;
 }
+
+//Notas
+//Detectar el cambio de windowsize en modulo window y pasarle la info a render o camara para actualizar la proyección. Así podemos hacer resize sin afectar a las visuales

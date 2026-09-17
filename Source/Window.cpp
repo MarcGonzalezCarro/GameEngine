@@ -4,7 +4,8 @@
 
 Window::Window() : Module()
 {
-	window = NULL;
+	window = nullptr;
+	context = nullptr;
 	name = "window";
 }
 
@@ -26,6 +27,13 @@ bool Window::Awake()
 	}
 	else
 	{
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);//Use 4
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);//Use 6
+
 		// Create window
 		Uint32 flags = 0;
 		bool fullscreen = false;
@@ -43,22 +51,36 @@ bool Window::Awake()
 		if (resizable == true)         flags |= SDL_WINDOW_RESIZABLE;
 
 		// SDL3: SDL_CreateWindow(title, w, h, flags). Set position separately.
-		window = SDL_CreateWindow("Platform Game", width, height, flags);
+		window = SDL_CreateWindow("Motor test", width, height, SDL_WINDOW_OPENGL);
 
-		if (window == NULL)
+		if (window == nullptr)
 		{
 			LOG("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 			ret = false;
 		}
 		else
 		{
-			if (fullscreen_window == true)
-			{
-				SDL_SetWindowFullscreenMode(window, nullptr); // use desktop resolution
-				SDL_SetWindowFullscreen(window, true);
+			context = SDL_GL_CreateContext(window);
+
+			if (context == nullptr) {
+				LOG("OpenGL context could not be created! SDL_Error: %s\n", SDL_GetError());
+				ret = false;
 			}
-			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-			SDL_ShowWindow(window);
+			else {
+
+				SDL_GL_MakeCurrent(window, context);
+
+				SDL_GL_SetSwapInterval(1); 
+
+				if (fullscreen_window == true)
+				{
+					SDL_SetWindowFullscreenMode(window, nullptr); // use desktop resolution
+					SDL_SetWindowFullscreen(window, true);
+				}
+
+				SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+				SDL_ShowWindow(window);
+			}
 		}
 	}
 
@@ -71,9 +93,16 @@ bool Window::CleanUp()
 	LOG("Destroying SDL window and quitting all SDL systems");
 
 	// Destroy window
-	if (window != NULL)
+	if (context != nullptr)
+	{
+		SDL_GL_DestroyContext(context);
+		context = nullptr;
+	}
+
+	if (window != nullptr)
 	{
 		SDL_DestroyWindow(window);
+		window = nullptr;
 	}
 
 	// Quit SDL subsystems
@@ -97,4 +126,14 @@ void Window::GetWindowSize(int& width, int& height) const
 int Window::GetScale() const
 {
 	return scale;
+}
+
+SDL_Window* Window::GetWindow() const
+{
+	return window;
+}
+
+void Window::SwapBuffers()
+{
+	SDL_GL_SwapWindow(window);
 }

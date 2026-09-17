@@ -27,9 +27,14 @@ public:
 	// Retrieve window scale
 	int GetScale() const;
 
+	SDL_Window* GetWindow() const;
+
+	void SwapBuffers();
+
 public:
 	// The window we'll be rendering to
 	SDL_Window* window;
+	SDL_GLContext context;
 
 	std::string title;
 	int width = 1280;

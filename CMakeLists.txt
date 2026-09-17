@@ -11,12 +11,14 @@ Source/Engine.cpp
 Source/Input.cpp 
 Source/Log.cpp 
 Source/Window.cpp
+Source/Render.cpp
 
 Include/Engine.h
 Include/Input.h
 Include/Log.h
 Include/Module.h
-Include/Window.h)
+Include/Window.h
+Include/Render.h)
 
 target_include_directories(HelloWorld PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Include
