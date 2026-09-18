@@ -128,7 +128,7 @@ void Engine::PrepareUpdate()
 // ---------------------------------------------
 void Engine::FinishUpdate()
 {
-    
+    window->SwapBuffers();
 }
 
 // Call modules before each loop iteration

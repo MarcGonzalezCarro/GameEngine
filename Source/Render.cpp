@@ -170,8 +170,6 @@ bool Render::PostUpdate()
 
     glBindVertexArray(0);
 
-    Engine::GetInstance().window->SwapBuffers();
-
     return true;
 }
 

@@ -133,6 +133,11 @@ SDL_Window* Window::GetWindow() const
 	return window;
 }
 
+SDL_GLContext Window::GetContext()
+{
+	return context;
+}
+
 void Window::SwapBuffers()
 {
 	SDL_GL_SwapWindow(window);

@@ -10,7 +10,9 @@
     {
       "name": "imgui",
       "features": [
-        "docking-experimental"
+        "docking-experimental",
+	"sdl3-binding",
+        "opengl3-binding"
       ]
     }
   ]

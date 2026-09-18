@@ -29,6 +29,8 @@ public:
 
 	SDL_Window* GetWindow() const;
 
+	SDL_GLContext GetContext();
+
 	void SwapBuffers();
 
 public:
