@@ -50,9 +50,10 @@ bool Render::Awake()
 
     float vertices[] =
     {
-        -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
+       -0.5f, -0.5f, 0.0f, 
+        0.5f, -0.5f, 0.0f,  
+        -0.5f,  0.5f, 0.0f,
+        0.5f,  0.5f, 0.0f
     };
 
     glGenVertexArrays(1, &VAO);
@@ -68,9 +69,19 @@ bool Render::Awake()
         GL_STATIC_DRAW
     );
 
+    unsigned int indices[] = {
+        0,1,2,2,1,3
+    };
+
+    GLuint iBuff;
+
+    glGenBuffers(1, &iBuff);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iBuff);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
     glVertexAttribPointer(
         0,
-        3,
+        3, //Esto es el size del vector de vertex
         GL_FLOAT,
         GL_FALSE,
         3 * sizeof(float),
@@ -166,7 +177,8 @@ bool Render::PostUpdate()
 
     glBindVertexArray(VAO);
 
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    //glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
 
