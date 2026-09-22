@@ -6,14 +6,15 @@
         "gl-api-46"
       ]
     },
-    "sdl3",
     {
       "name": "imgui",
       "features": [
         "docking-experimental",
-	"sdl3-binding",
-        "opengl3-binding"
+        "opengl3-binding",
+        "sdl3-binding"
       ]
-    }
+    },
+    "sdl3",
+    "glm"
   ]
 }
