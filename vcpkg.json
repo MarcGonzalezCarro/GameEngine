@@ -1,11 +1,13 @@
 {
   "dependencies": [
+    "assimp",
     {
       "name": "glad",
       "features": [
         "gl-api-46"
       ]
     },
+    "glm",
     {
       "name": "imgui",
       "features": [
@@ -15,6 +17,6 @@
       ]
     },
     "sdl3",
-    "glm"
+    "devil"
   ]
 }
