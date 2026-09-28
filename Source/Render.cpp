@@ -6,6 +6,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#define CHECKERS_WIDTH 64
+#define CHECKERS_HEIGHT 64
 // Constructor
 Render::Render() : Module()
 {
@@ -59,34 +62,93 @@ bool Render::Awake()
         0.5f,  0.5f, 0.0f
     };*/
 
-    float vertices[] = {
-        // Posición (X, Y, Z)      // Color (R, G, B)
-        -0.5f, -0.5f, -0.5f,      1.0f, 0.0f, 0.0f, // 0: Rojo
-         0.5f, -0.5f, -0.5f,      0.0f, 1.0f, 0.0f, // 1: Verde
-         0.5f,  0.5f, -0.5f,      0.0f, 0.0f, 1.0f, // 2: Azul
-        -0.5f,  0.5f, -0.5f,      1.0f, 1.0f, 0.0f, // 3: Amarillo
+    float vertices[] =
+    {
+        // =========================
+        // CARA TRASERA
+        // =========================
 
-        -0.5f, -0.5f,  0.5f,      1.0f, 0.0f, 1.0f, // 4: Magenta
-         0.5f, -0.5f,  0.5f,      0.0f, 1.0f, 1.0f, // 5: Cian
-         0.5f,  0.5f,  0.5f,      1.0f, 1.0f, 1.0f, // 6: Blanco
-        -0.5f,  0.5f,  0.5f,      0.5f, 0.5f, 0.5f  // 7: Gris
+        // Posición              // Color              // UV
+        -0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 0.0f,    0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,    0.0f, 1.0f, 0.0f,    1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,    0.0f, 0.0f, 1.0f,    1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 0.0f,    0.0f, 1.0f,
+
+        // =========================
+        // CARA FRONTAL
+        // =========================
+
+        -0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,    0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,    0.0f, 1.0f, 1.0f,    1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,    0.5f, 0.5f, 0.5f,    0.0f, 1.0f,
+
+        // =========================
+        // CARA IZQUIERDA
+        // =========================
+
+        -0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,    0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,    0.5f, 0.5f, 0.5f,    1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 0.0f,    1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 0.0f,    0.0f, 1.0f,
+
+        // =========================
+        // CARA DERECHA
+        // =========================
+
+         0.5f, -0.5f, -0.5f,    0.0f, 1.0f, 0.0f,    0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,    0.0f, 0.0f, 1.0f,    1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,    0.0f, 1.0f, 1.0f,    0.0f, 1.0f,
+
+         // =========================
+         // CARA ABAJO
+         // =========================
+
+         -0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 0.0f,    0.0f, 0.0f,
+          0.5f, -0.5f, -0.5f,    0.0f, 1.0f, 0.0f,    1.0f, 0.0f,
+          0.5f, -0.5f,  0.5f,    0.0f, 1.0f, 1.0f,    1.0f, 1.0f,
+         -0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,    0.0f, 1.0f,
+
+         // =========================
+         // CARA ARRIBA
+         // =========================
+
+         -0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 0.0f,    0.0f, 0.0f,
+          0.5f,  0.5f, -0.5f,    0.0f, 0.0f, 1.0f,    1.0f, 0.0f,
+          0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f,
+         -0.5f,  0.5f,  0.5f,    0.5f, 0.5f, 0.5f,    0.0f, 1.0f
     };
+
 
     // 36 Índices (6 caras * 2 triángulos * 3 vértices)
-    unsigned int indices[] = {
-        // Cara trasera
-        0, 2, 1,   0, 3, 2,
-        // Cara frontal
-        4, 5, 6,   4, 6, 7,
-        // Cara izquierda
-        4, 7, 3,   4, 3, 0,
-        // Cara derecha
-        1, 2, 6,   1, 6, 5,
-        // Cara inferior
-        0, 1, 5,   0, 5, 4,
-        // Cara superior
-        3, 7, 6,   3, 6, 2
+    unsigned int indices[] =
+    {
+        // Trasera
+        0, 1, 2,
+        0, 2, 3,
+
+        // Frontal
+        4, 5, 6,
+        4, 6, 7,
+
+        // Izquierda
+        8, 9, 10,
+        8, 10, 11,
+
+        // Derecha
+        12, 13, 14,
+        12, 14, 15,
+
+        // Abajo
+        16, 17, 18,
+        16, 18, 19,
+
+        // Arriba
+        20, 21, 22,
+        20, 22, 23
     };
+
 
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
@@ -121,7 +183,7 @@ bool Render::Awake()
     //);
 
     // Stride = 6 floats (3 para Posición + 3 para Color)
-    GLsizei stride = 6 * sizeof(float);
+    GLsizei stride = 8 * sizeof(float);
 
     // Atributo 0: Posición (location = 0)
     glVertexAttribPointer(
@@ -144,6 +206,17 @@ bool Render::Awake()
         (void*)(3 * sizeof(float)) // Offset de 3 floats
     );
     glEnableVertexAttribArray(1);
+
+    // Atributo 2: Coordenadas de textura (UV)
+    glVertexAttribPointer(
+        2,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        stride,
+        (void*)(6 * sizeof(float))
+    );
+    glEnableVertexAttribArray(2);
 
     // -------------------------
     // Shaders
@@ -193,6 +266,48 @@ bool Render::Awake()
 
     glBindVertexArray(0);
 
+    //Textura checkers
+    GLubyte checkerImage[CHECKERS_HEIGHT][CHECKERS_WIDTH][4];
+
+    for (int i = 0; i < CHECKERS_HEIGHT; i++)
+    {
+        for (int j = 0; j < CHECKERS_WIDTH; j++)
+        {
+            int c = ((((i & 0x8) == 0) ^
+                ((j & 0x8) == 0))) * 255;
+
+            checkerImage[i][j][0] = (GLubyte)c;
+            checkerImage[i][j][1] = (GLubyte)c;
+            checkerImage[i][j][2] = (GLubyte)c;
+            checkerImage[i][j][3] = 255;
+        }
+    }
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        CHECKERS_WIDTH,
+        CHECKERS_HEIGHT,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        checkerImage
+    );
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
     return ret;
 }
 
@@ -241,6 +356,12 @@ bool Render::PostUpdate()
 
     glUseProgram(shaderProgram);
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    GLint textureLoc = glGetUniformLocation(shaderProgram, "checkerTexture");
+
+    glUniform1i(textureLoc, 0);
     // --- Matriz de transformación 3D (MVP) ---
     static float angle = 0.0f;
     angle += 0.01f; // Velocidad de rotación

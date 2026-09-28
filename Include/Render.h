@@ -40,6 +40,7 @@ public:
     GLuint VAO = 0;
     GLuint VBO = 0;
     GLuint shaderProgram = 0;
+    GLuint textureID = 0;
 
 private:
 
