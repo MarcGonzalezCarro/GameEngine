@@ -1,14 +1,31 @@
+// ============================================================
+// INCLUDES
+// ============================================================
+
 #include "Render.h"
 #include "Log.h"
 #include "Engine.h"
 #include "Window.h"
+
 #include <string>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+
+// ============================================================
+// CONSTANTES
+// ============================================================
+
 #define CHECKERS_WIDTH 64
 #define CHECKERS_HEIGHT 64
+
+
+// ============================================================
+// CONSTRUCTOR / DESTRUCTOR
+// ============================================================
+
 // Constructor
 Render::Render() : Module()
 {
@@ -20,6 +37,12 @@ Render::~Render()
 {
 }
 
+
+// ============================================================
+// AWAKE
+// Inicialización de OpenGL, geometría, shaders y textura
+// ============================================================
+
 // Called before render is available
 bool Render::Awake()
 {
@@ -27,6 +50,11 @@ bool Render::Awake()
     LOG("Initializing OpenGL");
 
     bool ret = true;
+
+
+    // --------------------------------------------------------
+    // Inicialización de GLAD
+    // --------------------------------------------------------
 
     int version = gladLoadGLLoader(
         reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress)
@@ -40,24 +68,35 @@ bool Render::Awake()
 
     LOG("GLAD initialized successfully");
 
+
+    // --------------------------------------------------------
+    // Información de OpenGL
+    // --------------------------------------------------------
+
     LOG("Vendor: %s", glGetString(GL_VENDOR));
     LOG("Renderer: %s", glGetString(GL_RENDERER));
     LOG("OpenGL version supported: %s", glGetString(GL_VERSION));
     LOG("GLSL: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+
+    // --------------------------------------------------------
+    // Configuración inicial de OpenGL
+    // --------------------------------------------------------
 
     glClearColor(0.f, 0.f, 0.f, 1.f);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    // -------------------------
-    // Triangle
-    // -------------------------
+
+    // ========================================================
+    // VÉRTICES DEL CUBO
+    // ========================================================
 
     /*float vertices[] =
     {
-       -0.5f, -0.5f, 0.0f, 
-        0.5f, -0.5f, 0.0f,  
+       -0.5f, -0.5f, 0.0f,
+        0.5f, -0.5f, 0.0f,
         -0.5f,  0.5f, 0.0f,
         0.5f,  0.5f, 0.0f
     };*/
@@ -74,6 +113,7 @@ bool Render::Awake()
          0.5f,  0.5f, -0.5f,    0.0f, 0.0f, 1.0f,    1.0f, 1.0f,
         -0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 0.0f,    0.0f, 1.0f,
 
+
         // =========================
         // CARA FRONTAL
         // =========================
@@ -82,6 +122,7 @@ bool Render::Awake()
          0.5f, -0.5f,  0.5f,    0.0f, 1.0f, 1.0f,    1.0f, 0.0f,
          0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f,
         -0.5f,  0.5f,  0.5f,    0.5f, 0.5f, 0.5f,    0.0f, 1.0f,
+
 
         // =========================
         // CARA IZQUIERDA
@@ -92,6 +133,7 @@ bool Render::Awake()
         -0.5f,  0.5f, -0.5f,    1.0f, 1.0f, 0.0f,    1.0f, 1.0f,
         -0.5f, -0.5f, -0.5f,    1.0f, 0.0f, 0.0f,    0.0f, 1.0f,
 
+
         // =========================
         // CARA DERECHA
         // =========================
@@ -101,6 +143,7 @@ bool Render::Awake()
          0.5f,  0.5f,  0.5f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f,
          0.5f, -0.5f,  0.5f,    0.0f, 1.0f, 1.0f,    0.0f, 1.0f,
 
+
          // =========================
          // CARA ABAJO
          // =========================
@@ -109,6 +152,7 @@ bool Render::Awake()
           0.5f, -0.5f, -0.5f,    0.0f, 1.0f, 0.0f,    1.0f, 0.0f,
           0.5f, -0.5f,  0.5f,    0.0f, 1.0f, 1.0f,    1.0f, 1.0f,
          -0.5f, -0.5f,  0.5f,    1.0f, 0.0f, 1.0f,    0.0f, 1.0f,
+
 
          // =========================
          // CARA ARRIBA
@@ -121,37 +165,73 @@ bool Render::Awake()
     };
 
 
+    // ========================================================
+    // ÍNDICES DEL CUBO
+    // ========================================================
+
     // 36 Índices (6 caras * 2 triángulos * 3 vértices)
     unsigned int indices[] =
     {
-        // Trasera
-        0, 1, 2,
-        0, 2, 3,
+        // =========================
+        // CARA TRASERA (-Z)
+        // =========================
 
-        // Frontal
+        0, 2, 1,
+        0, 3, 2,
+
+
+        // =========================
+        // CARA FRONTAL (+Z)
+        // =========================
+
         4, 5, 6,
         4, 6, 7,
 
-        // Izquierda
+
+        // =========================
+        // CARA IZQUIERDA (-X)
+        // =========================
+
         8, 9, 10,
         8, 10, 11,
 
-        // Derecha
+
+        // =========================
+        // CARA DERECHA (+X)
+        // =========================
+
         12, 13, 14,
         12, 14, 15,
 
-        // Abajo
+
+        // =========================
+        // CARA ABAJO (-Y)
+        // =========================
+
         16, 17, 18,
         16, 18, 19,
 
-        // Arriba
-        20, 21, 22,
-        20, 22, 23
+
+        // =========================
+        // CARA ARRIBA (+Y)
+        // =========================
+
+        20, 22, 21,
+        20, 23, 22
     };
 
 
+    // ========================================================
+    // VAO
+    // ========================================================
+
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
+
+
+    // ========================================================
+    // VBO
+    // ========================================================
 
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -163,15 +243,32 @@ bool Render::Awake()
         GL_STATIC_DRAW
     );
 
+
     /*unsigned int indices[] = {
         0,1,2,2,1,3
     };*/
+
+
+    // ========================================================
+    // EBO / INDEX BUFFER
+    // ========================================================
 
     GLuint iBuff;
 
     glGenBuffers(1, &iBuff);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iBuff);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        sizeof(indices),
+        indices,
+        GL_STATIC_DRAW
+    );
+
+
+    // ========================================================
+    // ATRIBUTOS DE VÉRTICES
+    // ========================================================
 
     //glVertexAttribPointer(
     //    0,
@@ -182,8 +279,18 @@ bool Render::Awake()
     //    (void*)0
     //);
 
+
+    // --------------------------------------------------------
+    // Stride
+    // --------------------------------------------------------
+
     // Stride = 6 floats (3 para Posición + 3 para Color)
     GLsizei stride = 8 * sizeof(float);
+
+
+    // --------------------------------------------------------
+    // Atributo 0: Posición
+    // --------------------------------------------------------
 
     // Atributo 0: Posición (location = 0)
     glVertexAttribPointer(
@@ -194,7 +301,13 @@ bool Render::Awake()
         stride,
         (void*)0
     );
+
     glEnableVertexAttribArray(0);
+
+
+    // --------------------------------------------------------
+    // Atributo 1: Color
+    // --------------------------------------------------------
 
     // Atributo 1: Color (location = 1) ---> AQUÍ ESTÁ EL CAMBIO <---
     glVertexAttribPointer(
@@ -205,7 +318,13 @@ bool Render::Awake()
         stride,
         (void*)(3 * sizeof(float)) // Offset de 3 floats
     );
+
     glEnableVertexAttribArray(1);
+
+
+    // --------------------------------------------------------
+    // Atributo 2: Coordenadas UV
+    // --------------------------------------------------------
 
     // Atributo 2: Coordenadas de textura (UV)
     glVertexAttribPointer(
@@ -216,11 +335,13 @@ bool Render::Awake()
         stride,
         (void*)(6 * sizeof(float))
     );
+
     glEnableVertexAttribArray(2);
 
-    // -------------------------
-    // Shaders
-    // -------------------------
+
+    // ========================================================
+    // SHADERS
+    // ========================================================
 
     std::string vertexSource =
         LoadShaderSource("Assets/Shaders/default.vert");
@@ -228,11 +349,21 @@ bool Render::Awake()
     std::string fragmentSource =
         LoadShaderSource("Assets/Shaders/default.frag");
 
+
+    // --------------------------------------------------------
+    // Compilar Vertex Shader
+    // --------------------------------------------------------
+
     GLuint vertexShader =
         CompileShader(
             GL_VERTEX_SHADER,
             vertexSource.c_str()
         );
+
+
+    // --------------------------------------------------------
+    // Compilar Fragment Shader
+    // --------------------------------------------------------
 
     GLuint fragmentShader =
         CompileShader(
@@ -240,12 +371,22 @@ bool Render::Awake()
             fragmentSource.c_str()
         );
 
+
+    // --------------------------------------------------------
+    // Crear Shader Program
+    // --------------------------------------------------------
+
     shaderProgram = glCreateProgram();
 
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
 
     glLinkProgram(shaderProgram);
+
+
+    // --------------------------------------------------------
+    // Comprobar Link
+    // --------------------------------------------------------
 
     GLint success = 0;
 
@@ -261,13 +402,27 @@ bool Render::Awake()
         ret = false;
     }
 
+
+    // --------------------------------------------------------
+    // Liberar shaders
+    // --------------------------------------------------------
+
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
     glBindVertexArray(0);
 
-    //Textura checkers
+
+    // ========================================================
+    // TEXTURA CHECKERS
+    // ========================================================
+
     GLubyte checkerImage[CHECKERS_HEIGHT][CHECKERS_WIDTH][4];
+
+
+    // --------------------------------------------------------
+    // Generar patrón de checkers
+    // --------------------------------------------------------
 
     for (int i = 0; i < CHECKERS_HEIGHT; i++)
     {
@@ -283,16 +438,41 @@ bool Render::Awake()
         }
     }
 
+
+    // --------------------------------------------------------
+    // Configuración de lectura de píxeles
+    // --------------------------------------------------------
+
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+
+    // --------------------------------------------------------
+    // Crear textura
+    // --------------------------------------------------------
 
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
 
+
+    // --------------------------------------------------------
+    // Wrap
+    // --------------------------------------------------------
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
+
+    // --------------------------------------------------------
+    // Filtros
+    // --------------------------------------------------------
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+
+    // --------------------------------------------------------
+    // Cargar imagen en textura
+    // --------------------------------------------------------
 
     glTexImage2D(
         GL_TEXTURE_2D,
@@ -308,8 +488,18 @@ bool Render::Awake()
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
+
+    // ========================================================
+    // FIN AWAKE
+    // ========================================================
+
     return ret;
 }
+
+
+// ============================================================
+// START
+// ============================================================
 
 // Called before the first frame
 bool Render::Start()
@@ -321,6 +511,12 @@ bool Render::Start()
     return ret;
 }
 
+
+// ============================================================
+// PRE UPDATE
+// Limpieza del framebuffer
+// ============================================================
+
 // Called before each loop iteration
 bool Render::PreUpdate()
 {
@@ -331,14 +527,25 @@ bool Render::PreUpdate()
     return ret;
 }
 
+
+// ============================================================
+// UPDATE
+// ============================================================
+
 // Called each loop iteration
 bool Render::Update(float dt)
 {
     bool ret = true;
 
-    
+
     return ret;
 }
+
+
+// ============================================================
+// POST UPDATE
+// Renderizado del cubo
+// ============================================================
 
 // Called after each loop iteration
 bool Render::PostUpdate()
@@ -354,80 +561,216 @@ bool Render::PostUpdate()
 
     //return true;
 
+
+    // ========================================================
+    // SHADER
+    // ========================================================
+
     glUseProgram(shaderProgram);
+
+
+    // ========================================================
+    // TEXTURA
+    // ========================================================
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureID);
 
-    GLint textureLoc = glGetUniformLocation(shaderProgram, "checkerTexture");
+    GLint textureLoc =
+        glGetUniformLocation(
+            shaderProgram,
+            "checkerTexture"
+        );
 
     glUniform1i(textureLoc, 0);
-    // --- Matriz de transformación 3D (MVP) ---
+
+
+    // ========================================================
+    // MATRICES DE TRANSFORMACIÓN 3D
+    // ========================================================
+
     static float angle = 0.0f;
+
     angle += 0.01f; // Velocidad de rotación
 
-    // 1. Model: Rotar y posicionar el cubo
+
+    // --------------------------------------------------------
+    // MODEL
+    // Rotar y posicionar el cubo
+    // --------------------------------------------------------
+
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::rotate(model, angle, glm::vec3(0.5f, 1.0f, 0.0f));
 
-    // 2. View: Alejamos la cámara 3 unidades en Z
-    glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
+    model = glm::rotate(
+        model,
+        angle,
+        glm::vec3(0.5f, 1.0f, 0.0f)
+    );
 
-    // 3. Projection: Perspectiva 3D (FOV 45°, Aspect Ratio 4:3 o según ventana)
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+
+    // --------------------------------------------------------
+    // VIEW
+    // Alejamos la cámara 3 unidades en Z
+    // --------------------------------------------------------
+
+    glm::mat4 view =
+        glm::translate(
+            glm::mat4(1.0f),
+            glm::vec3(0.0f, 0.0f, -3.0f)
+        );
+
+
+    // --------------------------------------------------------
+    // PROJECTION
+    // Perspectiva 3D
+    // --------------------------------------------------------
+
+    glm::mat4 projection =
+        glm::perspective(
+            glm::radians(45.0f),
+            800.0f / 600.0f,
+            0.1f,
+            100.0f
+        );
+
+
+    // --------------------------------------------------------
+    // MVP
+    // P * V * M
+    // --------------------------------------------------------
 
     // Multiplicamos en orden P * V * M
-    glm::mat4 mvp = projection * view * model;
+    glm::mat4 mvp =
+        projection * view * model;
+
+
+    // --------------------------------------------------------
+    // Enviar MVP al shader
+    // --------------------------------------------------------
 
     // Pasamos la matriz MVP al uniform del shader
-    GLint mvpLoc = glGetUniformLocation(shaderProgram, "mvp");
-    glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, glm::value_ptr(mvp));
+    GLint mvpLoc =
+        glGetUniformLocation(
+            shaderProgram,
+            "mvp"
+        );
 
-    // --- Dibujar el Cubo ---
+    glUniformMatrix4fv(
+        mvpLoc,
+        1,
+        GL_FALSE,
+        glm::value_ptr(mvp)
+    );
+
+
+    // ========================================================
+    // DIBUJAR CUBO
+    // ========================================================
+
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0); // 36 Índices
+
+    glDrawElements(
+        GL_TRIANGLES,
+        36,
+        GL_UNSIGNED_INT,
+        0
+    ); // 36 Índices
+
     glBindVertexArray(0);
+
 
     return true;
 }
+
+
+// ============================================================
+// COMPILE SHADER
+// ============================================================
 
 GLuint Render::CompileShader(GLenum type, const char* source)
 {
     GLuint shader = glCreateShader(type);
 
-    glShaderSource(shader, 1, &source, nullptr);
+    glShaderSource(
+        shader,
+        1,
+        &source,
+        nullptr
+    );
+
     glCompileShader(shader);
 
+
+    // --------------------------------------------------------
+    // Comprobar compilación
+    // --------------------------------------------------------
+
     GLint success = 0;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
+    glGetShaderiv(
+        shader,
+        GL_COMPILE_STATUS,
+        &success
+    );
 
     if (success == GL_FALSE)
     {
         GLint logLength = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
+
+        glGetShaderiv(
+            shader,
+            GL_INFO_LOG_LENGTH,
+            &logLength
+        );
 
         glDeleteShader(shader);
+
         return 0;
     }
 
+
     return shader;
 }
+
+
+// ============================================================
+// LOAD SHADER SOURCE
+// ============================================================
 
 std::string Render::LoadShaderSource(const char* path)
 {
     std::ifstream file(path);
 
+
+    // --------------------------------------------------------
+    // Comprobar archivo
+    // --------------------------------------------------------
+
     if (!file.is_open())
     {
         LOG("Could not open shader file: %s", path);
+
         return "";
     }
 
+
+    // --------------------------------------------------------
+    // Leer contenido
+    // --------------------------------------------------------
+
     std::stringstream buffer;
+
     buffer << file.rdbuf();
+
 
     return buffer.str();
 }
+
+
+// ============================================================
+// CLEAN UP
+// Liberación de recursos de OpenGL
+// ============================================================
 
 // Called before quitting
 bool Render::CleanUp()
@@ -436,9 +779,27 @@ bool Render::CleanUp()
 
     bool ret = true;
 
+
+    // --------------------------------------------------------
+    // Liberar VBO
+    // --------------------------------------------------------
+
     glDeleteBuffers(1, &VBO);
+
+
+    // --------------------------------------------------------
+    // Liberar VAO
+    // --------------------------------------------------------
+
     glDeleteVertexArrays(1, &VAO);
+
+
+    // --------------------------------------------------------
+    // Liberar Shader Program
+    // --------------------------------------------------------
+
     glDeleteProgram(shaderProgram);
+
 
     return ret;
 }
