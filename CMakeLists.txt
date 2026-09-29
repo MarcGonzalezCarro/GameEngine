@@ -17,6 +17,7 @@ Source/Log.cpp
 Source/Window.cpp
 Source/Render.cpp
 Source/Editor.cpp
+Source/ResourceManager.cpp
 
 Include/Engine.h
 Include/Input.h
@@ -24,7 +25,8 @@ Include/Log.h
 Include/Module.h
 Include/Window.h
 Include/Render.h
-Include/Editor.h)
+Include/Editor.h
+Include/ResourceManager.h)
 
 target_include_directories(HelloWorld PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Include

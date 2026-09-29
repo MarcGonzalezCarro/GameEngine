@@ -1,50 +1,86 @@
 #pragma once
 
 #include "Module.h"
+#include "ResourceManager.h"
+
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
+
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
+
+
+// ============================================================
+// MESH GPU
+// ============================================================
+
+struct MeshGPU
+{
+    GLuint VAO = 0;
+    GLuint VBO = 0;
+    GLuint EBO = 0;
+
+    unsigned int num_indices = 0;
+};
+
+
+// ============================================================
+// RENDER
+// ============================================================
 
 class Render : public Module
 {
 public:
 
-    // Constructor
     Render();
-
-    // Destructor
     ~Render();
 
-    // Called before render is available
     bool Awake() override;
-
-    // Called before the first frame
     bool Start() override;
 
-    // Called each loop iteration
     bool PreUpdate() override;
-
-    // Called each loop iteration
     bool Update(float dt) override;
-
-    // Called each loop iteration
     bool PostUpdate() override;
 
-    // Called before quitting
     bool CleanUp() override;
 
 
+    // ========================================================
+    // MESH
+    // ========================================================
+
+    MeshGPU UploadMesh(const Mesh& mesh);
+
+    void DrawMesh(const MeshGPU& mesh);
+
+    void DeleteMesh(MeshGPU& mesh);
+
+
+    // ========================================================
+    // OPENGL
+    // ========================================================
 
     GLuint VAO = 0;
     GLuint VBO = 0;
+    GLuint EBO = 0;
+
     GLuint shaderProgram = 0;
     GLuint textureID = 0;
 
+
 private:
 
-    GLuint CompileShader(GLenum type, const char* source);
-    std::string LoadShaderSource(const char* path);
+    std::vector<MeshGPU> modelMeshes;
 
+
+    GLuint CompileShader(
+        GLenum type,
+        const char* source
+    );
+
+    std::string LoadShaderSource(
+        const char* path
+    );
 };

@@ -508,7 +508,228 @@ bool Render::Start()
 
     bool ret = true;
 
+
+    // ========================================================
+    // LOAD TEST MODEL
+    // ========================================================
+
+    if (Engine::GetInstance()
+        .resourceManager
+        ->LoadModel("Assets/Models/warrior.FBX"))
+    {
+        LOG("Warrior loaded successfully");
+
+
+        const std::vector<Mesh>& meshes =
+            Engine::GetInstance()
+            .resourceManager
+            ->GetMeshes();
+
+
+        // ====================================================
+        // UPLOAD ALL MESHES
+        // ====================================================
+
+        for (const Mesh& mesh : meshes)
+        {
+            MeshGPU gpuMesh =
+                UploadMesh(mesh);
+
+            modelMeshes.push_back(
+                gpuMesh
+            );
+        }
+
+
+        LOG(
+            "Uploaded %d meshes to GPU",
+            modelMeshes.size()
+        );
+    }
+    else
+    {
+        LOG("Failed to load warrior.fbx");
+    }
+
+
     return ret;
+}
+
+// ============================================================
+// UPLOAD MESH
+// Copia un Mesh de CPU a VRAM
+// ============================================================
+
+MeshGPU Render::UploadMesh(const Mesh& mesh)
+{
+    MeshGPU gpuMesh;
+
+
+    // ========================================================
+    // VAO
+    // ========================================================
+
+    glGenVertexArrays(
+        1,
+        &gpuMesh.VAO
+    );
+
+    glBindVertexArray(
+        gpuMesh.VAO
+    );
+
+
+    // ========================================================
+    // VBO
+    // ========================================================
+
+    glGenBuffers(
+        1,
+        &gpuMesh.VBO
+    );
+
+    glBindBuffer(
+        GL_ARRAY_BUFFER,
+        gpuMesh.VBO
+    );
+
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        mesh.num_vertices * 3 * sizeof(float),
+        mesh.vertices,
+        GL_STATIC_DRAW
+    );
+
+
+    // ========================================================
+    // EBO
+    // ========================================================
+
+    glGenBuffers(
+        1,
+        &gpuMesh.EBO
+    );
+
+    glBindBuffer(
+        GL_ELEMENT_ARRAY_BUFFER,
+        gpuMesh.EBO
+    );
+
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        mesh.num_indices * sizeof(GLuint),
+        mesh.indices,
+        GL_STATIC_DRAW
+    );
+
+
+    // ========================================================
+    // VERTEX ATTRIBUTE
+    //
+    // De momento Assimp nos da únicamente:
+    //
+    // position.x
+    // position.y
+    // position.z
+    //
+    // ========================================================
+
+    glVertexAttribPointer(
+        0,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        3 * sizeof(float),
+        (void*)0
+    );
+
+    glEnableVertexAttribArray(0);
+
+
+    // ========================================================
+    // FINAL
+    // ========================================================
+
+    gpuMesh.num_indices =
+        mesh.num_indices;
+
+
+    glBindVertexArray(0);
+
+
+    LOG(
+        "Mesh uploaded to GPU: %d vertices, %d indices",
+        mesh.num_vertices,
+        mesh.num_indices
+    );
+
+
+    return gpuMesh;
+}
+
+// ============================================================
+// DRAW MESH
+// ============================================================
+
+void Render::DrawMesh(const MeshGPU& mesh)
+{
+    glBindVertexArray(
+        mesh.VAO
+    );
+
+
+    glDrawElements(
+        GL_TRIANGLES,
+        mesh.num_indices,
+        GL_UNSIGNED_INT,
+        nullptr
+    );
+
+
+    glBindVertexArray(0);
+}
+
+// ============================================================
+// DELETE MESH
+// Libera los recursos OpenGL de un mesh
+// ============================================================
+
+void Render::DeleteMesh(MeshGPU& mesh)
+{
+    if (mesh.EBO != 0)
+    {
+        glDeleteBuffers(
+            1,
+            &mesh.EBO
+        );
+
+        mesh.EBO = 0;
+    }
+
+
+    if (mesh.VBO != 0)
+    {
+        glDeleteBuffers(
+            1,
+            &mesh.VBO
+        );
+
+        mesh.VBO = 0;
+    }
+
+
+    if (mesh.VAO != 0)
+    {
+        glDeleteVertexArrays(
+            1,
+            &mesh.VAO
+        );
+
+        mesh.VAO = 0;
+    }
+
+
+    mesh.num_indices = 0;
 }
 
 
@@ -678,6 +899,14 @@ bool Render::PostUpdate()
 
     glBindVertexArray(0);
 
+    // ========================================================
+    // DIBUJAR MODELO IMPORTADO
+    // ========================================================
+
+    for (const MeshGPU& mesh : modelMeshes)
+    {
+        DrawMesh(mesh);
+    }
 
     return true;
 }
@@ -803,3 +1032,9 @@ bool Render::CleanUp()
 
     return ret;
 }
+
+//Framebuffers para el imgui
+//Utilizar stack/LIFO para gameObjects (DFS)
+//Memoria cache lifo, mirar
+//Guardar indices de gameobjects para evitar punteros apuntando a null al hacer reparenting
+//Guardar indices a materiales para no cargar a memoria materiales repetidos
