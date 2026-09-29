@@ -14,6 +14,7 @@ Input::Input() : Module()
 	memset(mouseButtons, KEY_IDLE, sizeof(KeyState) * NUM_MOUSE_BUTTONS);
 	memset(windowEvents, 0, sizeof(windowEvents));
 	mouseMotionX = mouseMotionY = mouseX = mouseY = 0;
+	mouseWheelY = 0;
 }
 
 // Destructor
@@ -44,85 +45,75 @@ bool Input::Start()
 	return true;
 }
 
-// Called each loop iteration
 bool Input::PreUpdate()
 {
-	static SDL_Event event;
+    static SDL_Event event;
 
-	int numKeys = 0;
-	const bool* keys = SDL_GetKeyboardState(&numKeys);
+    // 1. REINICIAR MOVIMIENTO Y RUEDA EN CADA FRAME
+    mouseMotionX = 0;
+    mouseMotionY = 0;
+    mouseWheelY = 0;
 
-	for (int i = 0; i < MAX_KEYS; ++i)
-	{
-		if (keys[i] == 1)
-		{
-			if (keyboard[i] == KEY_IDLE)
-				keyboard[i] = KEY_DOWN;
-			else
-				keyboard[i] = KEY_REPEAT;
-		}
-		else
-		{
-			if (keyboard[i] == KEY_REPEAT || keyboard[i] == KEY_DOWN)
-				keyboard[i] = KEY_UP;
-			else
-				keyboard[i] = KEY_IDLE;
-		}
-	}
+    // Actualizar estados de botones del ratón (DOWN -> REPEAT, UP -> IDLE)
+    for (int i = 0; i < NUM_MOUSE_BUTTONS; ++i)
+    {
+        if (mouseButtons[i] == KEY_DOWN)
+            mouseButtons[i] = KEY_REPEAT;
+        else if (mouseButtons[i] == KEY_UP)
+            mouseButtons[i] = KEY_IDLE;
+    }
 
-	for (int i = 0; i < NUM_MOUSE_BUTTONS; ++i)
-	{
-		if (mouseButtons[i] == KEY_DOWN)
-			mouseButtons[i] = KEY_REPEAT;
+    // Poll events
+    while (SDL_PollEvent(&event))
+    {
+        switch (event.type)
+        {
+        case SDL_EVENT_QUIT:
+            windowEvents[WE_QUIT] = true;
+            break;
 
-		if (mouseButtons[i] == KEY_UP)
-			mouseButtons[i] = KEY_IDLE;
-	}
+        case SDL_EVENT_WINDOW_HIDDEN:
+        case SDL_EVENT_WINDOW_MINIMIZED:
+        case SDL_EVENT_WINDOW_FOCUS_LOST:
+            windowEvents[WE_HIDE] = true;
+            break;
 
-	while (SDL_PollEvent(&event))
-	{
-		switch (event.type)
-		{
-		case SDL_EVENT_QUIT:
-			windowEvents[WE_QUIT] = true;
-			break;
+        case SDL_EVENT_WINDOW_SHOWN:
+        case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        case SDL_EVENT_WINDOW_MAXIMIZED:
+        case SDL_EVENT_WINDOW_RESTORED:
+            windowEvents[WE_SHOW] = true;
+            break;
 
-		case SDL_EVENT_WINDOW_HIDDEN:
-		case SDL_EVENT_WINDOW_MINIMIZED:
-		case SDL_EVENT_WINDOW_FOCUS_LOST:
-			windowEvents[WE_HIDE] = true;
-			break;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            if (event.button.button >= 1 && event.button.button <= NUM_MOUSE_BUTTONS)
+                mouseButtons[event.button.button - 1] = KEY_DOWN;
+            break;
 
-		case SDL_EVENT_WINDOW_SHOWN:
-		case SDL_EVENT_WINDOW_FOCUS_GAINED:
-		case SDL_EVENT_WINDOW_MAXIMIZED:
-		case SDL_EVENT_WINDOW_RESTORED:
-			windowEvents[WE_SHOW] = true;
-			break;
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+            if (event.button.button >= 1 && event.button.button <= NUM_MOUSE_BUTTONS)
+                mouseButtons[event.button.button - 1] = KEY_UP;
+            break;
 
-		case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			if (event.button.button >= 1 && event.button.button <= NUM_MOUSE_BUTTONS)
-				mouseButtons[event.button.button - 1] = KEY_DOWN;
-			break;
+        case SDL_EVENT_MOUSE_MOTION:
+        {
+            int scale = Engine::GetInstance().window->GetScale();
+            if (scale <= 0) scale = 1;
 
-		case SDL_EVENT_MOUSE_BUTTON_UP:
-			if (event.button.button >= 1 && event.button.button <= NUM_MOUSE_BUTTONS)
-				mouseButtons[event.button.button - 1] = KEY_UP;
-			break;
+            mouseMotionX = (int)(event.motion.xrel / scale);
+            mouseMotionY = (int)(event.motion.yrel / scale);
+            mouseX = (int)(event.motion.x / scale);
+            mouseY = (int)(event.motion.y / scale);
+        }
+        break;
 
-		case SDL_EVENT_MOUSE_MOTION:
-		{
-			int scale = Engine::GetInstance().window->GetScale();
-			mouseMotionX = (int)(event.motion.xrel / scale);
-			mouseMotionY = (int)(event.motion.yrel / scale);
-			mouseX = (int)(event.motion.x / scale);
-			mouseY = (int)(event.motion.y / scale);
-		}
-		break;
-		}
-	}
+        case SDL_EVENT_MOUSE_WHEEL:
+            mouseWheelY = (int)event.wheel.y;
+            break;
+        }
+    }
 
-	return true;
+    return true;
 }
 
 // Called before quitting
@@ -148,4 +139,10 @@ void Input::GetMouseMotion(int& x, int& y)
 {
 	x = mouseMotionX;
 	y = mouseMotionY;
+}
+
+// 3. NUEVO MÉTODO PARA LEER LA RUEDA
+int Input::GetMouseWheel()
+{
+	return mouseWheelY;
 }

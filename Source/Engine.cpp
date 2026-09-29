@@ -273,6 +273,15 @@ bool Engine::CleanUp()
 
 void Engine::PrepareUpdate()
 {
+    
+    static uint64_t lastTime = SDL_GetTicks();
+    uint64_t currentTime = SDL_GetTicks();
+
+    dt = (currentTime - lastTime) / 1000.0f;
+    lastTime = currentTime;
+
+    
+    if (dt > 0.1f) dt = 0.1f;
 }
 
 

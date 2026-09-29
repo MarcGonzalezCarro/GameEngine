@@ -6,7 +6,7 @@
 #include "Log.h"
 #include "Engine.h"
 #include "Window.h"
-
+#include "Editor.h"
 #include <string>
 
 #include <glm/glm.hpp>
@@ -809,7 +809,9 @@ bool Render::PostUpdate()
     // ========================================================
     // MATRICES DE TRANSFORMACIÓN 3D
     // ========================================================
-
+    
+    // Obtener la cámara del módulo Editor
+    Camera& camera = Engine::GetInstance().editor->camera;
     static float angle = 0.0f;
 
     angle += 0.01f; // Velocidad de rotación
@@ -817,43 +819,21 @@ bool Render::PostUpdate()
 
     // --------------------------------------------------------
     // MODEL
-    // Rotar y posicionar el cubo
     // --------------------------------------------------------
 
     glm::mat4 model = glm::mat4(1.0f);
 
-    model = glm::rotate(
-        model,
-        angle,
-        glm::vec3(0.5f, 1.0f, 0.0f)
-    );
-
-
     // --------------------------------------------------------
     // VIEW
-    // Alejamos la cámara 3 unidades en Z
     // --------------------------------------------------------
 
-    glm::mat4 view =
-        glm::translate(
-            glm::mat4(1.0f),
-            glm::vec3(0.0f, 0.0f, -3.0f)
-        );
-
+    glm::mat4 view = camera.GetViewMatrix();
 
     // --------------------------------------------------------
     // PROJECTION
-    // Perspectiva 3D
     // --------------------------------------------------------
 
-    glm::mat4 projection =
-        glm::perspective(
-            glm::radians(45.0f),
-            800.0f / 600.0f,
-            0.1f,
-            100.0f
-        );
-
+    glm::mat4 projection = camera.GetProjectionMatrix();
 
     // --------------------------------------------------------
     // MVP
@@ -888,16 +868,16 @@ bool Render::PostUpdate()
     // DIBUJAR CUBO
     // ========================================================
 
-    glBindVertexArray(VAO);
+    //glBindVertexArray(VAO);
 
-    glDrawElements(
-        GL_TRIANGLES,
-        36,
-        GL_UNSIGNED_INT,
-        0
-    ); // 36 Índices
+    //glDrawElements(
+    //    GL_TRIANGLES,
+    //    36,
+    //    GL_UNSIGNED_INT,
+    //    0
+    //); // 36 Índices
 
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
 
     // ========================================================
     // DIBUJAR MODELO IMPORTADO
