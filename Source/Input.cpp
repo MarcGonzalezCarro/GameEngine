@@ -2,6 +2,8 @@
 #include "Input.h"
 #include "Window.h"
 #include "Log.h"
+#include "ResourceManager.h"
+#include "Render.h"
 
 #define MAX_KEYS 300
 
@@ -71,7 +73,44 @@ bool Input::PreUpdate()
         case SDL_EVENT_QUIT:
             windowEvents[WE_QUIT] = true;
             break;
+        case SDL_EVENT_DROP_FILE:
+        {
+            const char* path = event.drop.data;
 
+            if (path != nullptr)
+            {
+                LOG("Dropped file: %s", path);
+
+                auto& engine = Engine::GetInstance();
+
+                if (engine.resourceManager->LoadModel(path))
+                {
+                    const std::vector<Mesh>& meshes =
+                        engine.resourceManager->GetMeshes();
+
+                    for (const Mesh& mesh : meshes)
+                    {
+                        MeshGPU gpuMesh = engine.render->UploadMesh(mesh);
+
+                        engine.render->modelMeshes.push_back(gpuMesh);
+                    }
+
+                    LOG(
+                        "Model loaded and uploaded successfully: %s",
+                        path
+                    );
+                }
+                else
+                {
+                    LOG(
+                        "Failed to load model: %s",
+                        path
+                    );
+                }
+            }
+
+            break;
+        }
         case SDL_EVENT_WINDOW_HIDDEN:
         case SDL_EVENT_WINDOW_MINIMIZED:
         case SDL_EVENT_WINDOW_FOCUS_LOST:
@@ -111,6 +150,7 @@ bool Input::PreUpdate()
             mouseWheelY = (int)event.wheel.y;
             break;
         }
+
     }
 
     return true;

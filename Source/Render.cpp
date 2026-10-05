@@ -443,7 +443,7 @@ bool Render::Awake()
     // Configuración de lectura de píxeles
     // --------------------------------------------------------
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //Mirar
 
 
     // --------------------------------------------------------
@@ -515,7 +515,7 @@ bool Render::Start()
 
     if (Engine::GetInstance()
         .resourceManager
-        ->LoadModel("Assets/Models/warrior.FBX"))
+        ->LoadModel("Assets/Models/BakerHouse.FBX"))
     {
         LOG("Warrior loaded successfully");
 
@@ -1018,3 +1018,4 @@ bool Render::CleanUp()
 //Memoria cache lifo, mirar
 //Guardar indices de gameobjects para evitar punteros apuntando a null al hacer reparenting
 //Guardar indices a materiales para no cargar a memoria materiales repetidos
+//Separar importers de save/load | Solo Engine necesita import

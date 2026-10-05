@@ -69,10 +69,11 @@ public:
     GLuint shaderProgram = 0;
     GLuint textureID = 0;
 
+    std::vector<MeshGPU> modelMeshes;
 
 private:
 
-    std::vector<MeshGPU> modelMeshes;
+    
 
 
     GLuint CompileShader(

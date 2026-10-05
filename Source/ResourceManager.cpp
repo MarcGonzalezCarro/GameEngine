@@ -229,11 +229,6 @@ bool ResourceManager::LoadModel(const char* file_path)
                     ai_mesh->mFaces[j];
 
 
-                // ------------------------------------------------
-                // Como usamos aiProcess_Triangulate,
-                // esperamos 3 índices.
-                // ------------------------------------------------
-
                 if (face.mNumIndices != 3)
                 {
                     LOG(
