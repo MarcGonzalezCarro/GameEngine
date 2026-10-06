@@ -5,6 +5,9 @@
 #include "ResourceManager.h"
 #include "Log.h"
 
+#include <IL/il.h>
+#include <IL/ilu.h>
+#include <IL/ilut.h>
 
 // ============================================================
 // CONSTRUCTOR / DESTRUCTOR
@@ -30,11 +33,26 @@ ResourceManager::~ResourceManager()
 
 bool ResourceManager::Awake()
 {
-    LOG("Assets::Awake");
+    LOG("ResourceManager::Awake");
 
-    bool ret = true;
+    ilInit();
+    iluInit();
 
-    return ret;
+    ILenum error = ilGetError();
+
+    if (error != IL_NO_ERROR)
+    {
+        LOG(
+            "ERROR: DevIL initialization failed: %d",
+            error
+        );
+
+        return false;
+    }
+
+    LOG("DevIL initialized successfully");
+
+    return true;
 }
 
 
@@ -98,6 +116,18 @@ bool ResourceManager::LoadModel(const char* file_path)
 {
     LOG("Loading model: %s", file_path);
 
+    std::string modelPath = file_path;
+
+    size_t lastSlash =
+        modelPath.find_last_of("/\\");
+
+    std::string modelDirectory;
+
+    if (lastSlash != std::string::npos)
+    {
+        modelDirectory =
+            modelPath.substr(0, lastSlash + 1);
+    }
 
     // ========================================================
     // IMPORTAR ESCENA
@@ -188,16 +218,35 @@ bool ResourceManager::LoadModel(const char* file_path)
         if (mesh.num_vertices > 0)
         {
             mesh.vertices =
-                new float[mesh.num_vertices * 3];
+                new float[mesh.num_vertices * 5];
 
+            for (GLuint v = 0; v < mesh.num_vertices; ++v)
+            {
+                mesh.vertices[v * 5 + 0] =
+                    ai_mesh->mVertices[v].x;
 
-            memcpy(
-                mesh.vertices,
-                ai_mesh->mVertices,
-                sizeof(float) *
-                mesh.num_vertices *
-                3
-            );
+                mesh.vertices[v * 5 + 1] =
+                    ai_mesh->mVertices[v].y;
+
+                mesh.vertices[v * 5 + 2] =
+                    ai_mesh->mVertices[v].z;
+
+                if (ai_mesh->HasTextureCoords(0))
+                {
+                    mesh.vertices[v * 5 + 3] =
+                        ai_mesh->mTextureCoords[0][v].x;
+
+                    mesh.vertices[v * 5 + 4] =
+                        ai_mesh->mTextureCoords[0][v].y;
+                }
+                else
+                {
+                    mesh.vertices[v * 5 + 3] = 0.0f;
+                    mesh.vertices[v * 5 + 4] = 0.0f;
+                }
+            }
+
+            
         }
 
 
@@ -269,6 +318,53 @@ bool ResourceManager::LoadModel(const char* file_path)
             );
         }
 
+        // ========================================================
+        // MATERIAL / TEXTURA
+        // ========================================================
+
+        if (ai_mesh->mMaterialIndex < scene->mNumMaterials)
+        {
+            const aiMaterial* material =
+                scene->mMaterials[ai_mesh->mMaterialIndex];
+
+            if (material->GetTextureCount(
+                aiTextureType_DIFFUSE) > 0)
+            {
+                aiString texturePath;
+
+                if (material->GetTexture(
+                    aiTextureType_DIFFUSE,
+                    0,
+                    &texturePath) == AI_SUCCESS)
+                {
+                    std::string texturePathString =
+                        texturePath.C_Str();
+
+
+                    // Si Assimp devuelve una ruta absoluta,
+                    // usamos esa ruta directamente.
+                    if (texturePathString.size() > 1 &&
+                        texturePathString[1] == ':')
+                    {
+                        mesh.diffuseTexture =
+                            texturePathString;
+                    }
+                    else
+                    {
+                        mesh.diffuseTexture =
+                            modelDirectory +
+                            texturePathString;
+                    }
+
+                    LOG(
+                        "Mesh %d diffuse texture: %s",
+                        i,
+                        mesh.diffuseTexture.c_str()
+                    );
+                }
+            }
+        }
+
 
         // ====================================================
         // GUARDAR MESH
@@ -294,6 +390,73 @@ bool ResourceManager::LoadModel(const char* file_path)
     return true;
 }
 
+bool ResourceManager::LoadTexture(
+    const char* file_path,
+    Texture& texture)
+{
+    LOG("Loading texture: %s", file_path);
+
+    ILuint imageID = 0;
+
+    ilGenImages(1, &imageID);
+    ilBindImage(imageID);
+
+
+    if (!ilLoadImage(file_path))
+    {
+        LOG(
+            "ERROR: Could not load texture %s",
+            file_path
+        );
+
+        ilDeleteImages(1, &imageID);
+
+        return false;
+    }
+
+
+    if (!ilConvertImage(
+        IL_RGBA,
+        IL_UNSIGNED_BYTE))
+    {
+        LOG(
+            "ERROR: Could not convert texture to RGBA"
+        );
+
+        ilDeleteImages(1, &imageID);
+
+        return false;
+    }
+
+
+    texture.width =
+        ilGetInteger(IL_IMAGE_WIDTH);
+
+    texture.height =
+        ilGetInteger(IL_IMAGE_HEIGHT);
+
+    texture.channels = 4;
+
+
+    const size_t size =
+        static_cast<size_t>(texture.width) *
+        static_cast<size_t>(texture.height) *
+        4;
+
+
+    texture.pixels.resize(size);
+
+    memcpy(
+        texture.pixels.data(),
+        ilGetData(),
+        size
+    );
+
+
+    ilDeleteImages(1, &imageID);
+
+    return true;
+}
 
 // ============================================================
 // GET MESHES
@@ -322,9 +485,11 @@ void ResourceManager::ClearMeshes()
 // Called before quitting
 bool ResourceManager::CleanUp()
 {
-    LOG("Assets::CleanUp");
+    LOG("ResourceManager::CleanUp");
 
     ClearMeshes();
+
+    ilShutDown();
 
     return true;
 }

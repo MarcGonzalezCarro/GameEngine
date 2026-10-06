@@ -595,7 +595,7 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
 
     glBufferData(
         GL_ARRAY_BUFFER,
-        mesh.num_vertices * 3 * sizeof(float),
+        mesh.num_vertices * 5 * sizeof(float),
         mesh.vertices,
         GL_STATIC_DRAW
     );
@@ -622,6 +622,32 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
         GL_STATIC_DRAW
     );
 
+    if (!mesh.diffuseTexture.empty())
+    {
+        Texture texture;
+
+        if (Engine::GetInstance()
+            .resourceManager
+            ->LoadTexture(
+                mesh.diffuseTexture.c_str(),
+                texture))
+        {
+            gpuMesh.textureID =
+                UploadTexture(texture);
+
+            LOG(
+                "Texture uploaded for mesh: %s",
+                mesh.diffuseTexture.c_str()
+            );
+        }
+        else
+        {
+            LOG(
+                "Could not load mesh texture: %s",
+                mesh.diffuseTexture.c_str()
+            );
+        }
+    }
 
     // ========================================================
     // VERTEX ATTRIBUTE
@@ -634,16 +660,36 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
     //
     // ========================================================
 
+    // ========================================================
+    // POSITION
+    // ========================================================
+
     glVertexAttribPointer(
         0,
         3,
         GL_FLOAT,
         GL_FALSE,
-        3 * sizeof(float),
+        5 * sizeof(float),
         (void*)0
     );
 
     glEnableVertexAttribArray(0);
+
+
+    // ========================================================
+    // UV
+    // ========================================================
+
+    glVertexAttribPointer(
+        2,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        5 * sizeof(float),
+        (void*)(3 * sizeof(float))
+    );
+
+    glEnableVertexAttribArray(2);
 
 
     // ========================================================
@@ -728,10 +774,73 @@ void Render::DeleteMesh(MeshGPU& mesh)
         mesh.VAO = 0;
     }
 
+    if (mesh.textureID != 0)
+    {
+        glDeleteTextures(
+            1,
+            &mesh.textureID
+        );
+
+        mesh.textureID = 0;
+    }
 
     mesh.num_indices = 0;
+
+
 }
 
+GLuint Render::UploadTexture(const Texture& texture)
+{
+    GLuint id = 0;
+
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MIN_FILTER,
+        GL_LINEAR_MIPMAP_LINEAR
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MAG_FILTER,
+        GL_LINEAR
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_WRAP_S,
+        GL_REPEAT
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_WRAP_T,
+        GL_REPEAT
+    );
+
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA8,
+        texture.width,
+        texture.height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        texture.pixels.data()
+    );
+
+
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return id;
+}
 
 // ============================================================
 // PRE UPDATE
@@ -793,9 +902,6 @@ bool Render::PostUpdate()
     // ========================================================
     // TEXTURA
     // ========================================================
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
 
     GLint textureLoc =
         glGetUniformLocation(
@@ -885,6 +991,13 @@ bool Render::PostUpdate()
 
     for (const MeshGPU& mesh : modelMeshes)
     {
+        glActiveTexture(GL_TEXTURE0);
+
+        glBindTexture(
+            GL_TEXTURE_2D,
+            mesh.textureID
+        );
+
         DrawMesh(mesh);
     }
 
@@ -1009,6 +1122,18 @@ bool Render::CleanUp()
 
     glDeleteProgram(shaderProgram);
 
+    if (textureID != 0)
+    {
+        glDeleteTextures(1, &textureID);
+        textureID = 0;
+    }
+
+    for (MeshGPU& mesh : modelMeshes)
+    {
+        DeleteMesh(mesh);
+    }
+
+    modelMeshes.clear();
 
     return ret;
 }

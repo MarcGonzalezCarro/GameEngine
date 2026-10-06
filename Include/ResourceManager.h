@@ -9,6 +9,14 @@
 #include <assimp/postprocess.h>
 #include <glad/glad.h>
 
+struct Texture
+{
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+
+    std::vector<unsigned char> pixels;
+};
 
 // ============================================================
 // MESH
@@ -32,6 +40,7 @@ struct Mesh
     GLuint num_indices = 0;
     GLuint* indices = nullptr;
 
+    std::string diffuseTexture;
 
     // --------------------------------------------------------
     // Constructor
@@ -74,13 +83,14 @@ struct Mesh
         num_indices = other.num_indices;
         indices = other.indices;
 
+        diffuseTexture = std::move(other.diffuseTexture);
+
         other.num_vertices = 0;
         other.vertices = nullptr;
 
         other.num_indices = 0;
         other.indices = nullptr;
     }
-
 
     Mesh& operator=(Mesh&& other) noexcept
     {
@@ -94,6 +104,8 @@ struct Mesh
 
             num_indices = other.num_indices;
             indices = other.indices;
+
+            diffuseTexture = std::move(other.diffuseTexture);
 
             other.num_vertices = 0;
             other.vertices = nullptr;
@@ -159,6 +171,11 @@ public:
 
     void ClearMeshes();
 
+
+    bool LoadTexture(
+        const char* file_path,
+        Texture& texture
+    );
 
 private:
 

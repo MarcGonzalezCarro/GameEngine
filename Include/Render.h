@@ -22,6 +22,8 @@ struct MeshGPU
     GLuint VBO = 0;
     GLuint EBO = 0;
 
+    GLuint textureID = 0;
+
     unsigned int num_indices = 0;
 };
 
@@ -56,6 +58,8 @@ public:
     void DrawMesh(const MeshGPU& mesh);
 
     void DeleteMesh(MeshGPU& mesh);
+
+    GLuint UploadTexture(const Texture& texture);
 
 
     // ========================================================

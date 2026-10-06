@@ -5,6 +5,11 @@
 #include "ResourceManager.h"
 #include "Render.h"
 
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
+#include <string>
+
 #define MAX_KEYS 300
 
 Input::Input() : Module()
@@ -75,42 +80,167 @@ bool Input::PreUpdate()
             break;
         case SDL_EVENT_DROP_FILE:
         {
-            const char* path = event.drop.data;
+            if (event.drop.data == nullptr)
+                break;
 
-            if (path != nullptr)
+
+            std::string droppedPath =
+                event.drop.data;
+
+            LOG(
+                "Dropped file: %s",
+                droppedPath.c_str()
+            );
+
+            std::string extension;
+
+            size_t dot =
+                droppedPath.find_last_of('.');
+
+            if (dot != std::string::npos)
             {
-                LOG("Dropped file: %s", path);
+                extension =
+                    droppedPath.substr(dot);
 
-                auto& engine = Engine::GetInstance();
-
-                if (engine.resourceManager->LoadModel(path))
-                {
-                    const std::vector<Mesh>& meshes =
-                        engine.resourceManager->GetMeshes();
-
-                    for (const Mesh& mesh : meshes)
+                std::transform(
+                    extension.begin(),
+                    extension.end(),
+                    extension.begin(),
+                    [](unsigned char c)
                     {
-                        MeshGPU gpuMesh = engine.render->UploadMesh(mesh);
-
-                        engine.render->modelMeshes.push_back(gpuMesh);
+                        return static_cast<char>(
+                            std::tolower(c)
+                            );
                     }
+                );
+            }
 
-                    LOG(
-                        "Model loaded and uploaded successfully: %s",
-                        path
-                    );
+
+            std::transform(
+                extension.begin(),
+                extension.end(),
+                extension.begin(),
+                [](unsigned char c)
+                {
+                    return static_cast<char>(
+                        std::tolower(c)
+                        );
                 }
-                else
+            );
+
+
+            auto& engine =
+                Engine::GetInstance();
+
+
+            // ========================================================
+            // MODEL
+            // ========================================================
+
+            if (extension == ".fbx" ||
+                extension == ".obj" ||
+                extension == ".gltf" ||
+                extension == ".glb")
+            {
+                if (!engine.resourceManager->LoadModel(
+                    droppedPath.c_str()))
                 {
                     LOG(
                         "Failed to load model: %s",
-                        path
+                        droppedPath.c_str()
+                    );
+
+                    break;
+                }
+
+
+                // Eliminar modelo anterior
+                for (MeshGPU& gpuMesh :
+                    engine.render->modelMeshes)
+                {
+                    engine.render->DeleteMesh(gpuMesh);
+                }
+
+                engine.render->modelMeshes.clear();
+
+
+                // Subir nuevo modelo
+                const std::vector<Mesh>& meshes =
+                    engine.resourceManager->GetMeshes();
+
+
+                for (const Mesh& mesh : meshes)
+                {
+                    MeshGPU gpuMesh =
+                        engine.render->UploadMesh(mesh);
+
+                    engine.render->modelMeshes.push_back(
+                        gpuMesh
                     );
                 }
+
+
+                LOG(
+                    "Model loaded successfully: %s",
+                    droppedPath.c_str()
+                );
             }
+
+
+            // ========================================================
+            // TEXTURE
+            // ========================================================
+
+            else if (extension == ".png" ||
+                extension == ".jpg" ||
+                extension == ".jpeg" ||
+                extension == ".tga" ||
+                extension == ".bmp")
+            {
+                Texture texture;
+
+
+                if (!engine.resourceManager->LoadTexture(
+                    droppedPath.c_str(),
+                    texture))
+                {
+                    LOG(
+                        "Failed to load texture: %s",
+                        droppedPath.c_str()
+                    );
+
+                    break;
+                }
+
+
+                GLuint textureID =
+                    engine.render->UploadTexture(texture);
+
+
+                LOG(
+                    "Texture loaded successfully: %s (ID: %u)",
+                    droppedPath.c_str(),
+                    textureID
+                );
+            }
+
+
+            // ========================================================
+            // UNKNOWN
+            // ========================================================
+
+            else
+            {
+                LOG(
+                    "Unsupported file type: %s",
+                    droppedPath.c_str()
+                );
+            }
+
 
             break;
         }
+
         case SDL_EVENT_WINDOW_HIDDEN:
         case SDL_EVENT_WINDOW_MINIMIZED:
         case SDL_EVENT_WINDOW_FOCUS_LOST:
