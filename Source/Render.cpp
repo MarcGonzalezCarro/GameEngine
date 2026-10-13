@@ -412,7 +412,62 @@ bool Render::Awake()
 
     glBindVertexArray(0);
 
+    //Shader Grid
+    std::string gridVertexSource =
+        LoadShaderSource("Assets/Shaders/grid.vert");
 
+    std::string gridFragmentSource =
+        LoadShaderSource("Assets/Shaders/grid.frag");
+
+    GLuint gridVertexShader = CompileShader(
+        GL_VERTEX_SHADER,
+        gridVertexSource.c_str()
+    );
+
+    GLuint gridFragmentShader = CompileShader(
+        GL_FRAGMENT_SHADER,
+        gridFragmentSource.c_str()
+    );
+
+    if (gridVertexShader == 0 || gridFragmentShader == 0)
+    {
+        LOG("Failed to compile grid shaders");
+
+        if (gridVertexShader != 0)
+            glDeleteShader(gridVertexShader);
+
+        if (gridFragmentShader != 0)
+            glDeleteShader(gridFragmentShader);
+
+        return false;
+    }
+
+    gridShaderProgram = glCreateProgram();
+
+    glAttachShader(gridShaderProgram, gridVertexShader);
+    glAttachShader(gridShaderProgram, gridFragmentShader);
+
+    glLinkProgram(gridShaderProgram);
+
+    GLint successs = GL_FALSE;
+
+    glGetProgramiv(
+        gridShaderProgram,
+        GL_LINK_STATUS,
+        &successs
+    );
+
+    glDeleteShader(gridVertexShader);
+    glDeleteShader(gridFragmentShader);
+
+    if (successs == GL_FALSE)
+    {
+        LOG("Failed to link grid shader");
+        return false;
+    }
+
+    CreateGrid();
+    
     //// ========================================================
     //// TEXTURA CHECKERS
     //// ========================================================
@@ -890,7 +945,7 @@ bool Render::PostUpdate()
     //glBindVertexArray(0);
 
     //return true;
-
+    DrawGrid();
 
     // ========================================================
     // SHADER
@@ -1114,6 +1169,23 @@ bool Render::CleanUp()
 
     glDeleteVertexArrays(1, &VAO);
 
+    if (gridVBO != 0)
+    {
+        glDeleteBuffers(1, &gridVBO);
+        gridVBO = 0;
+    }
+
+    if (gridVAO != 0)
+    {
+        glDeleteVertexArrays(1, &gridVAO);
+        gridVAO = 0;
+    }
+
+    if (gridShaderProgram != 0)
+    {
+        glDeleteProgram(gridShaderProgram);
+        gridShaderProgram = 0;
+    }
 
     // --------------------------------------------------------
     // Liberar Shader Program
@@ -1137,6 +1209,98 @@ bool Render::CleanUp()
     return ret;
 }
 
+void Render::CreateGrid()
+{
+    const int halfSize = 10;
+    const float spacing = 1.0f;
+
+    std::vector<glm::vec3> vertices;
+
+    for (int i = -halfSize; i <= halfSize; ++i)
+    {
+        float p = i * spacing;
+
+        // Líneas paralelas al eje X
+        vertices.emplace_back(
+            -halfSize * spacing, 0.0f, p);
+        vertices.emplace_back(
+            halfSize * spacing, 0.0f, p);
+
+        // Líneas paralelas al eje Z
+        vertices.emplace_back(
+            p, 0.0f, -halfSize * spacing);
+        vertices.emplace_back(
+            p, 0.0f, halfSize * spacing);
+    }
+
+    gridVertexCount = static_cast<GLsizei>(
+        vertices.size());
+
+    glGenVertexArrays(1, &gridVAO);
+    glGenBuffers(1, &gridVBO);
+
+    glBindVertexArray(gridVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, gridVBO);
+
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        vertices.size() * sizeof(glm::vec3),
+        vertices.data(),
+        GL_STATIC_DRAW
+    );
+
+    glVertexAttribPointer(
+        0,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof(glm::vec3),
+        (void*)0
+    );
+
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+}
+
+void Render::DrawGrid()
+{
+    glUseProgram(gridShaderProgram);
+
+    Camera& camera = Engine::GetInstance().editor->camera;
+
+    glm::mat4 view = camera.GetViewMatrix();
+    glm::mat4 projection = camera.GetProjectionMatrix();
+    glm::mat4 model = glm::mat4(1.0f);
+
+    glm::mat4 mvp = projection * view * model;
+
+    GLint mvpLoc = glGetUniformLocation(
+        gridShaderProgram, "mvp");
+
+    glUniformMatrix4fv(
+        mvpLoc,
+        1,
+        GL_FALSE,
+        glm::value_ptr(mvp)
+    );
+
+    GLint colorLoc = glGetUniformLocation(
+        gridShaderProgram, "gridColor");
+
+    glUniform4f(colorLoc, 0.35f, 0.35f, 0.35f, 1.0f);
+
+    glBindVertexArray(gridVAO);
+
+    glDrawArrays(
+        GL_LINES,
+        0,
+        gridVertexCount
+    );
+
+    glBindVertexArray(0);
+}
 //Framebuffers para el imgui
 //Utilizar stack/LIFO para gameObjects (DFS)
 //Memoria cache lifo, mirar

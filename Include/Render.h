@@ -48,6 +48,8 @@ public:
 
     bool CleanUp() override;
 
+    void CreateGrid();
+
 
     // ========================================================
     // MESH
@@ -77,7 +79,11 @@ public:
 
 private:
 
-    
+    GLuint gridVAO = 0;
+    GLuint gridVBO = 0;
+    GLuint gridShaderProgram = 0;
+
+    GLsizei gridVertexCount = 0;
 
 
     GLuint CompileShader(
@@ -88,4 +94,6 @@ private:
     std::string LoadShaderSource(
         const char* path
     );
+
+    void DrawGrid();
 };
