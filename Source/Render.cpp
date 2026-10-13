@@ -413,85 +413,85 @@ bool Render::Awake()
     glBindVertexArray(0);
 
 
-    // ========================================================
-    // TEXTURA CHECKERS
-    // ========================================================
+    //// ========================================================
+    //// TEXTURA CHECKERS
+    //// ========================================================
 
-    GLubyte checkerImage[CHECKERS_HEIGHT][CHECKERS_WIDTH][4];
-
-
-    // --------------------------------------------------------
-    // Generar patrón de checkers
-    // --------------------------------------------------------
-
-    for (int i = 0; i < CHECKERS_HEIGHT; i++)
-    {
-        for (int j = 0; j < CHECKERS_WIDTH; j++)
-        {
-            int c = ((((i & 0x8) == 0) ^
-                ((j & 0x8) == 0))) * 255;
-
-            checkerImage[i][j][0] = (GLubyte)c;
-            checkerImage[i][j][1] = (GLubyte)c;
-            checkerImage[i][j][2] = (GLubyte)c;
-            checkerImage[i][j][3] = 255;
-        }
-    }
+    //GLubyte checkerImage[CHECKERS_HEIGHT][CHECKERS_WIDTH][4];
 
 
-    // --------------------------------------------------------
-    // Configuración de lectura de píxeles
-    // --------------------------------------------------------
+    //// --------------------------------------------------------
+    //// Generar patrón de checkers
+    //// --------------------------------------------------------
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //Mirar
+    //for (int i = 0; i < CHECKERS_HEIGHT; i++)
+    //{
+    //    for (int j = 0; j < CHECKERS_WIDTH; j++)
+    //    {
+    //        int c = ((((i & 0x8) == 0) ^
+    //            ((j & 0x8) == 0))) * 255;
 
-
-    // --------------------------------------------------------
-    // Crear textura
-    // --------------------------------------------------------
-
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-
-    // --------------------------------------------------------
-    // Wrap
-    // --------------------------------------------------------
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    //        checkerImage[i][j][0] = (GLubyte)c;
+    //        checkerImage[i][j][1] = (GLubyte)c;
+    //        checkerImage[i][j][2] = (GLubyte)c;
+    //        checkerImage[i][j][3] = 255;
+    //    }
+    //}
 
 
-    // --------------------------------------------------------
-    // Filtros
-    // --------------------------------------------------------
+    //// --------------------------------------------------------
+    //// Configuración de lectura de píxeles
+    //// --------------------------------------------------------
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-
-    // --------------------------------------------------------
-    // Cargar imagen en textura
-    // --------------------------------------------------------
-
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA,
-        CHECKERS_WIDTH,
-        CHECKERS_HEIGHT,
-        0,
-        GL_RGBA,
-        GL_UNSIGNED_BYTE,
-        checkerImage
-    );
-
-    glBindTexture(GL_TEXTURE_2D, 0);
+    //glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //Mirar
 
 
-    // ========================================================
-    // FIN AWAKE
-    // ========================================================
+    //// --------------------------------------------------------
+    //// Crear textura
+    //// --------------------------------------------------------
+
+    //glGenTextures(1, &textureID);
+    //glBindTexture(GL_TEXTURE_2D, textureID);
+
+
+    //// --------------------------------------------------------
+    //// Wrap
+    //// --------------------------------------------------------
+
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+
+    //// --------------------------------------------------------
+    //// Filtros
+    //// --------------------------------------------------------
+
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+
+    //// --------------------------------------------------------
+    //// Cargar imagen en textura
+    //// --------------------------------------------------------
+
+    //glTexImage2D(
+    //    GL_TEXTURE_2D,
+    //    0,
+    //    GL_RGBA,
+    //    CHECKERS_WIDTH,
+    //    CHECKERS_HEIGHT,
+    //    0,
+    //    GL_RGBA,
+    //    GL_UNSIGNED_BYTE,
+    //    checkerImage
+    //);
+
+    //glBindTexture(GL_TEXTURE_2D, 0);
+
+
+    //// ========================================================
+    //// FIN AWAKE
+    //// ========================================================
 
     return ret;
 }
@@ -903,11 +903,10 @@ bool Render::PostUpdate()
     // TEXTURA
     // ========================================================
 
-    GLint textureLoc =
-        glGetUniformLocation(
-            shaderProgram,
-            "checkerTexture"
-        );
+    GLint textureLoc = glGetUniformLocation(
+        shaderProgram,
+        "diffuseTexture"
+    );
 
     glUniform1i(textureLoc, 0);
 

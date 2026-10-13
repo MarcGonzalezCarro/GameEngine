@@ -397,64 +397,42 @@ bool ResourceManager::LoadTexture(
     LOG("Loading texture: %s", file_path);
 
     ILuint imageID = 0;
-
     ilGenImages(1, &imageID);
     ilBindImage(imageID);
 
-
     if (!ilLoadImage(file_path))
     {
-        LOG(
-            "ERROR: Could not load texture %s",
-            file_path
-        );
-
+        LOG("ERROR: Could not load texture: %s", file_path);
         ilDeleteImages(1, &imageID);
-
         return false;
     }
 
-
-    if (!ilConvertImage(
-        IL_RGBA,
-        IL_UNSIGNED_BYTE))
+    if (!ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE))
     {
-        LOG(
-            "ERROR: Could not convert texture to RGBA"
-        );
-
+        LOG("ERROR: Could not convert texture to RGBA");
         ilDeleteImages(1, &imageID);
-
         return false;
     }
 
+    // Normalizar el origen de la imagen para OpenGL.
+    iluFlipImage();
 
-    texture.width =
-        ilGetInteger(IL_IMAGE_WIDTH);
-
-    texture.height =
-        ilGetInteger(IL_IMAGE_HEIGHT);
-
+    texture.width = ilGetInteger(IL_IMAGE_WIDTH);
+    texture.height = ilGetInteger(IL_IMAGE_HEIGHT);
     texture.channels = 4;
-
 
     const size_t size =
         static_cast<size_t>(texture.width) *
-        static_cast<size_t>(texture.height) *
-        4;
-
+        static_cast<size_t>(texture.height) * 4;
 
     texture.pixels.resize(size);
 
-    memcpy(
-        texture.pixels.data(),
-        ilGetData(),
-        size
-    );
+    memcpy(texture.pixels.data(), ilGetData(), size);
 
+    LOG("Texture loaded: %dx%d",
+        texture.width, texture.height);
 
     ilDeleteImages(1, &imageID);
-
     return true;
 }
 
