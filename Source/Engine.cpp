@@ -8,11 +8,12 @@
 #include "Input.h"
 #include "ResourceManager.h"
 #include "Render.h"
+#include "Scene/Scene.h"
 #include "Editor.h"
 
 //#include "Textures.h"
 //#include "Audio.h"
-//#include "Scene.h"
+
 
 
 // ============================================================
@@ -33,11 +34,11 @@ Engine::Engine()
     resourceManager = std::make_shared<ResourceManager>();
     render = std::make_shared<Render>();
     editor = std::make_shared<Editor>();
-
+    scene = std::make_shared<Scene>();
     /*
     textures = std::make_shared<Textures>();
     audio = std::make_shared<Audio>();
-    scene = std::make_shared<Scene>();
+   
     */
 
 
@@ -69,6 +70,9 @@ Engine::Engine()
         std::static_pointer_cast<Module>(resourceManager)
     );
 
+    AddModule(
+        std::static_pointer_cast<Module>(scene)
+    );
     /*
     AddModule(
         std::static_pointer_cast<Module>(textures)
@@ -78,9 +82,7 @@ Engine::Engine()
         std::static_pointer_cast<Module>(audio)
     );
 
-    AddModule(
-        std::static_pointer_cast<Module>(scene)
-    );
+    
     */
 
 

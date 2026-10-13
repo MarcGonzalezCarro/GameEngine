@@ -83,9 +83,10 @@ public:
 	std::shared_ptr<Render> render;
 	std::shared_ptr<Editor> editor;
 	std::shared_ptr<ResourceManager> resourceManager;
+	std::shared_ptr<Scene> scene;
 	/*std::shared_ptr<Textures> textures;
 	std::shared_ptr<Audio> audio;
-	std::shared_ptr<Scene> scene;*/
+	*/
 
 private:
 	float dt;

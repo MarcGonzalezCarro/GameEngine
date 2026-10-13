@@ -18,6 +18,11 @@ Source/Window.cpp
 Source/Render.cpp
 Source/Editor.cpp
 Source/ResourceManager.cpp
+Source/Scene/Scene.cpp
+Source/Scene/GameObject.cpp
+Source/Scene/Component.cpp
+Source/Components/Transform.cpp
+Source/Components/MeshRenderer.cpp
 
 Include/Engine.h
 Include/Input.h
@@ -26,7 +31,13 @@ Include/Module.h
 Include/Window.h
 Include/Render.h
 Include/Editor.h
-Include/ResourceManager.h)
+Include/ResourceManager.h
+Include/Scene/Scene.h
+Include/Scene/GameObject.h
+Include/Scene/Component.h
+Include/Components/Transform.h
+Include/Components/MeshRenderer.h
+)
 
 target_include_directories(HelloWorld PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Include
