@@ -1,50 +1,64 @@
+
 #include "Scene/Scene.h"
 #include "Log.h"
+
+// ============================================================
+// CONSTRUCTOR
+// ============================================================
 
 Scene::Scene() : Module()
 {
     name = "Scene";
 }
 
-Scene::~Scene() {}
+Scene::~Scene() = default;
+
+// ============================================================
+// AWAKE
+// ============================================================
 
 bool Scene::Awake()
 {
-    LOG("ModuleScene::Awake");
+    LOG("Scene::Awake");
+
     return true;
 }
 
+// ============================================================
+// START
+// ============================================================
+
 bool Scene::Start()
 {
-    LOG("ModuleScene::Start");
+    LOG("Scene::Start");
 
-    // Objeto de prueba para comprobar la jerarquía.
+    // Crear objeto de prueba.
     GameObject& house = CreateGameObject("BakerHouse");
 
     house.CreateChild("Roof");
     house.CreateChild("Door");
 
-    return true;
-}
-
-bool Scene::Update(float dt)
-{
-    for (auto& object : rootObjects)
-    {
-        object->Update();
-    }
+    LOG("Created GameObject: %s", house.GetName().c_str());
 
     return true;
 }
+
+// ============================================================
+// CREATE GAME OBJECT
+// ============================================================
 
 GameObject& Scene::CreateGameObject(
     const std::string& objectName,
     GameObject* parent
 )
 {
+    // Si tiene padre, se crea como hijo.
     if (parent != nullptr)
+    {
         return parent->CreateChild(objectName);
+    }
 
+    // Si no tiene padre, es un objeto raíz.
     auto object = std::make_unique<GameObject>(
         objectName
     );
@@ -56,10 +70,32 @@ GameObject& Scene::CreateGameObject(
     return reference;
 }
 
+// ============================================================
+// UPDATE
+// ============================================================
+
+bool Scene::Update(float dt)
+{
+    for (auto& object : rootObjects)
+    {
+        object->Update();
+    }
+
+    return true;
+}
+
+// ============================================================
+// CLEAR
+// ============================================================
+
 void Scene::Clear()
 {
     rootObjects.clear();
 }
+
+// ============================================================
+// GET ROOT OBJECTS
+// ============================================================
 
 const std::vector<std::unique_ptr<GameObject>>&
 Scene::GetRootObjects() const
@@ -67,9 +103,13 @@ Scene::GetRootObjects() const
     return rootObjects;
 }
 
+// ============================================================
+// CLEAN UP
+// ============================================================
+
 bool Scene::CleanUp()
 {
-    LOG("ModuleScene::CleanUp");
+    LOG("Scene::CleanUp");
 
     Clear();
 

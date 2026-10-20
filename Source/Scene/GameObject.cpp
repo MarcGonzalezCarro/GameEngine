@@ -1,4 +1,12 @@
+
 #include "Scene/GameObject.h"
+
+#include "Components/Transform.h"
+#include "Components/MeshRenderer.h"
+
+// ============================================================
+// CONSTRUCTOR
+// ============================================================
 
 GameObject::GameObject(
     const std::string& name,
@@ -6,23 +14,56 @@ GameObject::GameObject(
 )
     : name(name), parent(parent)
 {
+    // Todos los GameObject tienen Transform.
+    CreateComponent(ComponentType::Transform);
 }
+
+// ============================================================
+// CREATE COMPONENT
+// ============================================================
 
 Component& GameObject::CreateComponent(ComponentType type)
 {
-    // Evitamos crear dos Transform en el mismo objeto.
-    if (type == ComponentType::Transform)
+    // Evitar componentes únicos duplicados.
+    if (type == ComponentType::Transform ||
+        type == ComponentType::MeshRenderer)
     {
         Component* existing = GetComponent(type);
 
         if (existing != nullptr)
+        {
             return *existing;
+        }
     }
 
-    auto component = std::make_unique<Component>(
-        this,
-        type
-    );
+    std::unique_ptr<Component> component;
+
+    switch (type)
+    {
+    case ComponentType::Transform:
+
+        component = std::make_unique<Transform>(this);
+        break;
+
+    case ComponentType::MeshRenderer:
+
+        component = std::make_unique<MeshRenderer>(this);
+        break;
+
+    case ComponentType::Camera:
+
+        // Añadir aquí Camera cuando exista su clase.
+        // No crear una instancia de Component para simularla.
+        return CreateComponent(ComponentType::Unknown);
+
+    case ComponentType::Unknown:
+
+    default:
+
+        // Unknown no representa un componente funcional.
+        // Se evita crear componentes base genéricos.
+        return *components.front();
+    }
 
     Component& reference = *component;
 
@@ -30,6 +71,10 @@ Component& GameObject::CreateComponent(ComponentType type)
 
     return reference;
 }
+
+// ============================================================
+// CREATE CHILD
+// ============================================================
 
 GameObject& GameObject::CreateChild(
     const std::string& childName
@@ -47,6 +92,10 @@ GameObject& GameObject::CreateChild(
     return reference;
 }
 
+// ============================================================
+// UPDATE HIERARCHY
+// ============================================================
+
 void GameObject::UpdateHierarchy(bool parentActive)
 {
     const bool hierarchyActive = active && parentActive;
@@ -62,47 +111,81 @@ void GameObject::UpdateHierarchy(bool parentActive)
     }
 }
 
+// ============================================================
+// UPDATE
+// ============================================================
+
 void GameObject::Update()
 {
     UpdateHierarchy(true);
 }
+
+// ============================================================
+// GET COMPONENT
+// ============================================================
 
 Component* GameObject::GetComponent(ComponentType type)
 {
     for (auto& component : components)
     {
         if (component->GetType() == type)
+        {
             return component.get();
+        }
     }
 
     return nullptr;
 }
+
+// ============================================================
+// SET ACTIVE
+// ============================================================
 
 void GameObject::SetActive(bool value)
 {
     active = value;
 }
 
+// ============================================================
+// IS ACTIVE
+// ============================================================
+
 bool GameObject::IsActive() const
 {
     return active;
 }
+
+// ============================================================
+// GET NAME
+// ============================================================
 
 const std::string& GameObject::GetName() const
 {
     return name;
 }
 
+// ============================================================
+// GET PARENT
+// ============================================================
+
 GameObject* GameObject::GetParent() const
 {
     return parent;
 }
+
+// ============================================================
+// GET CHILDREN
+// ============================================================
 
 const std::vector<std::unique_ptr<GameObject>>&
 GameObject::GetChildren() const
 {
     return children;
 }
+
+// ============================================================
+// GET COMPONENTS
+// ============================================================
 
 const std::vector<std::unique_ptr<Component>>&
 GameObject::GetComponents() const

@@ -1,12 +1,16 @@
 // ============================================================
 // INCLUDES
 // ============================================================
-
+#include <SDL3/SDL.h>
 #include "Render.h"
 #include "Log.h"
 #include "Engine.h"
 #include "Window.h"
 #include "Editor.h"
+#include "Scene/Scene.h"
+#include "Scene/GameObject.h"
+#include "Components/MeshRenderer.h"
+#include "Components/Transform.h"
 #include <string>
 
 #include <glm/glm.hpp>
@@ -561,53 +565,60 @@ bool Render::Start()
 {
     LOG("Render::Start");
 
-    bool ret = true;
+    auto& resourceManager =
+        *Engine::GetInstance().resourceManager;
 
+    auto scene = Engine::GetInstance().scene;
 
-    // ========================================================
-    // LOAD TEST MODEL
-    // ========================================================
-
-    if (Engine::GetInstance()
-        .resourceManager
-        ->LoadModel("Assets/Models/BakerHouse.FBX"))
+    if (!scene)
     {
-        LOG("Warrior loaded successfully");
-
-
-        const std::vector<Mesh>& meshes =
-            Engine::GetInstance()
-            .resourceManager
-            ->GetMeshes();
-
-
-        // ====================================================
-        // UPLOAD ALL MESHES
-        // ====================================================
-
-        for (const Mesh& mesh : meshes)
-        {
-            MeshGPU gpuMesh =
-                UploadMesh(mesh);
-
-            modelMeshes.push_back(
-                gpuMesh
-            );
-        }
-
-
-        LOG(
-            "Uploaded %d meshes to GPU",
-            modelMeshes.size()
-        );
-    }
-    else
-    {
-        LOG("Failed to load warrior.fbx");
+        LOG("ERROR: Scene is null");
+        return false;
     }
 
+    // Cargar el modelo una sola vez.
+    if (!resourceManager.LoadModel(
+        "Assets/Models/BakerHouse.FBX"))
+    {
+        LOG("ERROR: Failed to load BakerHouse.FBX");
+        return false;
+    }
 
-    return ret;
+    const auto& meshes = resourceManager.GetMeshes();
+
+    if (meshes.empty())
+    {
+        LOG("ERROR: Model contains no meshes");
+        return false;
+    }
+
+    // Subir todos los meshes a la GPU.
+    modelMeshes.clear();
+
+    for (const Mesh& mesh : meshes)
+    {
+        modelMeshes.push_back(UploadMesh(mesh));
+    }
+
+    LOG("Uploaded %d meshes to GPU",
+        static_cast<int>(modelMeshes.size()));
+
+    // Asociar cada mesh a un GameObject.
+    const auto& roots = scene->GetRootObjects();
+
+    if (roots.empty())
+    {
+        LOG("WARNING: Scene has no root objects");
+        return false;
+    }
+
+    CreateMeshObjects(
+        *roots.front(),
+        0,
+        modelMeshes.size()
+    );
+
+    return true;
 }
 
 // ============================================================
@@ -920,12 +931,91 @@ bool Render::PreUpdate()
 // Called each loop iteration
 bool Render::Update(float dt)
 {
-    bool ret = true;
+    // ========================================================
+    // BUSCAR EL GAMEOBJECT DE LA CASA
+    // ========================================================
 
+    auto scene = Engine::GetInstance().scene;
 
-    return ret;
+    if (scene == nullptr)
+        return true;
+
+    GameObject* house = nullptr;
+
+    for (const auto& object : scene->GetRootObjects())
+    {
+        if (object->GetName() == "BakerHouse")
+        {
+            house = object.get();
+            break;
+        }
+    }
+
+    if (house == nullptr)
+        return true;
+
+    // ========================================================
+    // OBTENER EL TRANSFORM
+    // ========================================================
+
+    Component* component =
+        house->GetComponent(ComponentType::Transform);
+
+    if (component == nullptr)
+        return true;
+
+    Transform* transform =
+        static_cast<Transform*>(component);
+
+    // ========================================================
+    // LEER TECLADO
+    // ========================================================
+
+    const bool* keyboard = SDL_GetKeyboardState(nullptr);
+
+    // Velocidad de movimiento en unidades por segundo.
+    const float speed = 3.0f;
+
+    glm::vec3 movement(0.0f);
+
+    // Eje X
+    if (keyboard[SDL_SCANCODE_LEFT])
+        movement.x -= speed * dt;
+
+    if (keyboard[SDL_SCANCODE_RIGHT])
+        movement.x += speed * dt;
+
+    // Eje Z
+    if (keyboard[SDL_SCANCODE_UP])
+        movement.z -= speed * dt;
+
+    if (keyboard[SDL_SCANCODE_DOWN])
+        movement.z += speed * dt;
+
+    // Eje Y
+    if (keyboard[SDL_SCANCODE_PAGEUP])
+        movement.y += speed * dt;
+
+    if (keyboard[SDL_SCANCODE_PAGEDOWN])
+        movement.y -= speed * dt;
+
+    // ========================================================
+    // APLICAR MOVIMIENTO AL TRANSFORM
+    // ========================================================
+
+    if (movement.x != 0.0f ||
+        movement.y != 0.0f ||
+        movement.z != 0.0f)
+    {
+        glm::vec3 position = transform->GetPosition();
+
+        position += movement;
+
+        transform->SetPosition(position);
+    }
+
+    return true;
 }
-
 
 // ============================================================
 // POST UPDATE
@@ -935,125 +1025,142 @@ bool Render::Update(float dt)
 // Called after each loop iteration
 bool Render::PostUpdate()
 {
-    //glUseProgram(shaderProgram);
+    // ========================================================
+    // CÁMARA
+    // ========================================================
 
-    //glBindVertexArray(VAO);
+    Camera& camera = Engine::GetInstance().editor->camera;
 
-    ////glDrawArrays(GL_TRIANGLES, 0, 3);
-    //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    const glm::mat4 view = camera.GetViewMatrix();
+    const glm::mat4 projection = camera.GetProjectionMatrix();
 
-    //glBindVertexArray(0);
+    // ========================================================
+    // GRID
+    // ========================================================
 
-    //return true;
     DrawGrid();
 
     // ========================================================
-    // SHADER
+    // SHADER DEL MODELO
     // ========================================================
 
     glUseProgram(shaderProgram);
 
+    const GLint mvpLoc =
+        glGetUniformLocation(shaderProgram, "mvp");
 
-    // ========================================================
-    // TEXTURA
-    // ========================================================
-
-    GLint textureLoc = glGetUniformLocation(
-        shaderProgram,
-        "diffuseTexture"
-    );
+    const GLint textureLoc =
+        glGetUniformLocation(shaderProgram, "diffuseTexture");
 
     glUniform1i(textureLoc, 0);
 
-
     // ========================================================
-    // MATRICES DE TRANSFORMACIÓN 3D
-    // ========================================================
-    
-    // Obtener la cámara del módulo Editor
-    Camera& camera = Engine::GetInstance().editor->camera;
-    static float angle = 0.0f;
-
-    angle += 0.01f; // Velocidad de rotación
-
-
-    // --------------------------------------------------------
-    // MODEL
-    // --------------------------------------------------------
-
-    glm::mat4 model = glm::mat4(1.0f);
-
-    // --------------------------------------------------------
-    // VIEW
-    // --------------------------------------------------------
-
-    glm::mat4 view = camera.GetViewMatrix();
-
-    // --------------------------------------------------------
-    // PROJECTION
-    // --------------------------------------------------------
-
-    glm::mat4 projection = camera.GetProjectionMatrix();
-
-    // --------------------------------------------------------
-    // MVP
-    // P * V * M
-    // --------------------------------------------------------
-
-    // Multiplicamos en orden P * V * M
-    glm::mat4 mvp =
-        projection * view * model;
-
-
-    // --------------------------------------------------------
-    // Enviar MVP al shader
-    // --------------------------------------------------------
-
-    // Pasamos la matriz MVP al uniform del shader
-    GLint mvpLoc =
-        glGetUniformLocation(
-            shaderProgram,
-            "mvp"
-        );
-
-    glUniformMatrix4fv(
-        mvpLoc,
-        1,
-        GL_FALSE,
-        glm::value_ptr(mvp)
-    );
-
-
-    // ========================================================
-    // DIBUJAR CUBO
+    // ESCENA
     // ========================================================
 
-    //glBindVertexArray(VAO);
+    auto scene = Engine::GetInstance().scene;
 
-    //glDrawElements(
-    //    GL_TRIANGLES,
-    //    36,
-    //    GL_UNSIGNED_INT,
-    //    0
-    //); // 36 Índices
-
-    //glBindVertexArray(0);
-
-    // ========================================================
-    // DIBUJAR MODELO IMPORTADO
-    // ========================================================
-
-    for (const MeshGPU& mesh : modelMeshes)
+    if (scene)
     {
-        glActiveTexture(GL_TEXTURE0);
+        // Lambda recursiva para dibujar cada GameObject
+        std::function<void(GameObject&)> DrawGameObject;
 
-        glBindTexture(
-            GL_TEXTURE_2D,
-            mesh.textureID
-        );
+        DrawGameObject = [&](GameObject& object)
+            {
+                // ------------------------------------------------
+                // Obtener Transform
+                // ------------------------------------------------
 
-        DrawMesh(mesh);
+                Component* transformComponent =
+                    object.GetComponent(ComponentType::Transform);
+
+                // ------------------------------------------------
+                // Obtener MeshRenderer
+                // ------------------------------------------------
+
+                Component* rendererComponent =
+                    object.GetComponent(ComponentType::MeshRenderer);
+
+                if (transformComponent != nullptr &&
+                    rendererComponent != nullptr)
+                {
+                    auto* transform =
+                        static_cast<Transform*>(transformComponent);
+
+                    auto* meshRenderer =
+                        static_cast<MeshRenderer*>(rendererComponent);
+
+                    const std::size_t index =
+                        meshRenderer->GetMeshIndex();
+
+                    if (meshRenderer->HasMesh() &&
+                        index < modelMeshes.size())
+                    {
+                        const MeshGPU& gpuMesh = modelMeshes[index];
+
+                        // ----------------------------------------
+                        // MATRIZ DEL OBJETO
+                        // ----------------------------------------
+
+                        const glm::mat4 model =
+                            transform->GetWorldMatrix();
+
+                        const glm::mat4 mvp =
+                            projection * view * model;
+
+                        glUniformMatrix4fv(
+                            mvpLoc,
+                            1,
+                            GL_FALSE,
+                            glm::value_ptr(mvp)
+                        );
+
+                        // ----------------------------------------
+                        // TEXTURA
+                        // ----------------------------------------
+
+                        glActiveTexture(GL_TEXTURE0);
+
+                        glBindTexture(
+                            GL_TEXTURE_2D,
+                            gpuMesh.textureID
+                        );
+
+                        // ----------------------------------------
+                        // DIBUJAR
+                        // ----------------------------------------
+
+                        DrawMesh(gpuMesh);
+                    }
+                }
+
+                // ------------------------------------------------
+                // DIBUJAR HIJOS
+                // ------------------------------------------------
+
+                for (const auto& child : object.GetChildren())
+                {
+                    DrawGameObject(*child);
+                }
+            };
+
+        // ====================================================
+        // RECORRER OBJETOS RAÍZ
+        // ====================================================
+
+        for (const auto& object : scene->GetRootObjects())
+        {
+            DrawGameObject(*object);
+        }
     }
+
+    // ========================================================
+    // LIMPIEZA
+    // ========================================================
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
 
     return true;
 }
@@ -1300,6 +1407,42 @@ void Render::DrawGrid()
     );
 
     glBindVertexArray(0);
+}
+
+void Render::CreateMeshObjects(
+    GameObject& parent,
+    std::size_t firstMesh,
+    std::size_t meshCount)
+{
+    LOG("CreateMeshObjects: parent=%s, firstMesh=%d, meshCount=%d",
+        parent.GetName().c_str(),
+        static_cast<int>(firstMesh),
+        static_cast<int>(meshCount));
+
+    for (std::size_t i = firstMesh;
+        i < firstMesh + meshCount;
+        ++i)
+    {
+        GameObject& object = parent.CreateChild(
+            "Mesh_" + std::to_string(i));
+
+        LOG("Created GameObject: %s",
+            object.GetName().c_str());
+
+        auto& renderer =
+            static_cast<MeshRenderer&>(
+                object.CreateComponent(
+                    ComponentType::MeshRenderer));
+
+        renderer.SetMeshIndex(i);
+
+        LOG("MeshRenderer created: object=%s, meshIndex=%d",
+            object.GetName().c_str(),
+            static_cast<int>(renderer.GetMeshIndex()));
+
+        LOG("HasMesh: %s",
+            renderer.HasMesh() ? "true" : "false");
+    }
 }
 //Framebuffers para el imgui
 //Utilizar stack/LIFO para gameObjects (DFS)

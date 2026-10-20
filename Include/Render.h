@@ -2,7 +2,7 @@
 
 #include "Module.h"
 #include "ResourceManager.h"
-
+#include "Scene/GameObject.h"
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 
@@ -96,4 +96,7 @@ private:
     );
 
     void DrawGrid();
+
+    void CreateMeshObjects(GameObject& parent, std::size_t firstMesh, std::size_t meshCount);
+    
 };
