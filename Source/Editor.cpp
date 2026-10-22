@@ -3,6 +3,10 @@
 #include "Window.h"
 #include <SDL3/SDL.h>
 #include "Input.h"
+#include "imgui.h"
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_opengl3.h"
 
 Editor::Editor() : Module()
 {
@@ -16,6 +20,17 @@ Editor::~Editor()
 bool Editor::Awake()
 {
     LOG("Editor::Awake");
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplSDL3_InitForOpenGL(Engine::GetInstance().window->window, Engine::GetInstance().window->context);
+    ImGui_ImplOpenGL3_Init();
     return true;
 }
 
@@ -33,6 +48,7 @@ bool Editor::Start()
             LOG("Camera AspectRatio updated to %.2f (%dx%d)", camera.aspectRatio, width, height);
         }
     }
+
 
     return true;
 }
@@ -99,13 +115,20 @@ bool Editor::Update(float dt)
 }
 
 bool Editor::PostUpdate()
-{
+{// Rendering
+// (Your code clears your framebuffer, renders your other stuff etc.)
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    // (Your code calls SDL_GL_SwapWindow() etc.)
     return true;
 }
 
 bool Editor::CleanUp()
 {
     LOG("Editor::CleanUp");
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
     return true;
 }
 

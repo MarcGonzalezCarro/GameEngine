@@ -120,4 +120,7 @@ public:
 
 public:
     Camera camera;
+
+    //IMGUI
+    bool showConsole;
 };

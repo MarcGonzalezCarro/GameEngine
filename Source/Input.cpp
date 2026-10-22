@@ -10,6 +10,10 @@
 #include <filesystem>
 #include <string>
 
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_opengl3.h"
+
 #define MAX_KEYS 300
 
 Input::Input() : Module()
@@ -72,7 +76,9 @@ bool Input::PreUpdate()
 
     // Poll events
     while (SDL_PollEvent(&event))
-    {
+    {// (Where your code calls SDL_PollEvent())
+        ImGui_ImplSDL3_ProcessEvent(&event); // Forward your event to backend
+        // (You should discard mouse/keyboard messages in your game/engine when io.WantCaptureMouse/io.WantCaptureKeyboard are set.)
         switch (event.type)
         {
         case SDL_EVENT_QUIT:
@@ -280,9 +286,14 @@ bool Input::PreUpdate()
             mouseWheelY = (int)event.wheel.y;
             break;
         }
-
+     
     }
-
+    // (After event loop)
+// Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+    ImGui::ShowDemoWindow(); // Show demo window! :)
     return true;
 }
 
