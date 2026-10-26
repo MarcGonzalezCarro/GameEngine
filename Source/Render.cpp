@@ -603,20 +603,6 @@ bool Render::Start()
     LOG("Uploaded %d meshes to GPU",
         static_cast<int>(modelMeshes.size()));
 
-    // Asociar cada mesh a un GameObject.
-    const auto& roots = scene->GetRootObjects();
-
-    if (roots.empty())
-    {
-        LOG("WARNING: Scene has no root objects");
-        return false;
-    }
-
-    CreateMeshObjects(
-        *roots.front(),
-        0,
-        modelMeshes.size()
-    );
 
     return true;
 }

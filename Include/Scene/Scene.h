@@ -41,4 +41,5 @@ private:
 
     // Objetos raíz de la escena
     std::vector<std::unique_ptr<GameObject>> rootObjects;
+
 };

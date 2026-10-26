@@ -2,10 +2,11 @@
 
 #include "Module.h"
 #include "Log.h" // Incluimos tu sistema de logs
+#include <string>
+#include <vector>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <string>
 
 // ============================================================
 // CLASE CAMERA
@@ -101,7 +102,7 @@ public:
     void UpdateCameraVectors();
 };
 
-
+class GameObject;
 // ============================================================
 // MÓDULO EDITOR
 // ============================================================
@@ -118,9 +119,31 @@ public:
     bool PostUpdate() override;
     bool CleanUp() override;
 
+    // Selección
+    GameObject* GetSelectedObject() const;
+
+    // Consola
+    void AddConsoleLog(const std::string& message);
+
+private:
+    void DrawHierarchy();
+    void DrawHierarchyNode(GameObject& object);
+    void DrawInspector();
+    void DrawConsole();
+    void DrawSceneWindow();
+    void DrawMainMenu();
+    void DrawDockspace();
+    bool imguiInitialized = false;
+
+    GameObject* selectedObject = nullptr;
+
+    std::vector<std::string> consoleLogs;
+
+    bool showScene = true;
+    bool showHierarchy = true;
+    bool showInspector = true;
+    bool showConsole = true;
+
 public:
     Camera camera;
-
-    //IMGUI
-    bool showConsole;
 };

@@ -4,7 +4,10 @@
 
 #include "ResourceManager.h"
 #include "Log.h"
-
+#include "Engine.h"
+#include "Scene/Scene.h"
+#include "Scene/GameObject.h"
+#include "Components/MeshRenderer.h"
 #include <IL/il.h>
 #include <IL/ilu.h>
 #include <IL/ilut.h>
@@ -139,7 +142,28 @@ bool ResourceManager::LoadModel(const char* file_path)
         aiProcess_Triangulate
     );
 
+    auto engineScene = Engine::GetInstance().scene;
 
+    if (!engineScene)
+    {
+        LOG("ERROR: No active scene available");
+        aiReleaseImport(scene);
+        return false;
+    }
+
+    std::string modelName = modelPath.substr(lastSlash + 1);
+
+    // Eliminar la extensión del fichero.
+    size_t dot = modelName.find_last_of('.');
+
+    if (dot != std::string::npos)
+    {
+        modelName = modelName.substr(0, dot);
+    }
+
+    // Crear el GameObject vacío que representa el modelo.
+    GameObject& modelObject =
+        engineScene->CreateGameObject(modelName);
     // ========================================================
     // COMPROBAR RESULTADO
     // ========================================================
@@ -363,7 +387,29 @@ bool ResourceManager::LoadModel(const char* file_path)
         // GUARDAR MESH
         // ====================================================
 
+        const size_t meshIndex = meshes.size();
+
         meshes.push_back(std::move(mesh));
+
+        // Obtener el nombre original del mesh desde Assimp.
+        std::string meshName = ai_mesh->mName.C_Str();
+
+        // Si el mesh no tiene nombre, utilizar uno por defecto.
+        if (meshName.empty())
+        {
+            meshName = "Mesh" + std::to_string(i);
+        }
+
+        GameObject& meshObject =
+            modelObject.CreateChild(meshName);
+
+        Component& component =
+            meshObject.CreateComponent(ComponentType::MeshRenderer);
+
+        auto* meshRenderer =
+            static_cast<MeshRenderer*>(&component);
+
+        meshRenderer->SetMeshIndex(meshIndex);
     }
 
 

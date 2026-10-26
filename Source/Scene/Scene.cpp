@@ -9,6 +9,10 @@
 Scene::Scene() : Module()
 {
     name = "Scene";
+
+    rootObjects.push_back(
+        std::make_unique<GameObject>("Scene")
+    );
 }
 
 Scene::~Scene() = default;
@@ -32,13 +36,6 @@ bool Scene::Start()
 {
     LOG("Scene::Start");
 
-    // Crear objeto de prueba.
-    GameObject& house = CreateGameObject("BakerHouse");
-
-    house.CreateChild("Roof");
-    house.CreateChild("Door");
-
-    LOG("Created GameObject: %s", house.GetName().c_str());
 
     return true;
 }
@@ -48,26 +45,15 @@ bool Scene::Start()
 // ============================================================
 
 GameObject& Scene::CreateGameObject(
-    const std::string& objectName,
-    GameObject* parent
-)
+    const std::string& name,
+    GameObject* parent)
 {
-    // Si tiene padre, se crea como hijo.
     if (parent != nullptr)
     {
-        return parent->CreateChild(objectName);
+        return parent->CreateChild(name);
     }
 
-    // Si no tiene padre, es un objeto raíz.
-    auto object = std::make_unique<GameObject>(
-        objectName
-    );
-
-    GameObject& reference = *object;
-
-    rootObjects.push_back(std::move(object));
-
-    return reference;
+    return rootObjects.front()->CreateChild(name);
 }
 
 // ============================================================

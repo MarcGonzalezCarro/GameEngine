@@ -1,12 +1,18 @@
 #include "Editor.h"
+
 #include "Engine.h"
+#include "Scene/Scene.h"
+#include "Scene/GameObject.h"
+#include "Scene/Component.h"
+#include "Components/Transform.h"
+#include "Components/MeshRenderer.h"
+#include "Log.h"
 #include "Window.h"
+#include <imgui.h>
 #include <SDL3/SDL.h>
-#include "Input.h"
-#include "imgui.h"
-#include "imgui.h"
-#include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_opengl3.h>
+#include <glm/glm.hpp>
 
 Editor::Editor() : Module()
 {
@@ -20,162 +26,397 @@ Editor::~Editor()
 bool Editor::Awake()
 {
     LOG("Editor::Awake");
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
 
-    // Setup Platform/Renderer backends
-    ImGui_ImplSDL3_InitForOpenGL(Engine::GetInstance().window->window, Engine::GetInstance().window->context);
-    ImGui_ImplOpenGL3_Init();
+    auto& engine = Engine::GetInstance();
+
+    if (!engine.window)
+    {
+        LOG("Editor: Window module is unavailable");
+        return false;
+    }
+
+    if (!ImGui::GetCurrentContext())
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+    }
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImGui::StyleColorsDark();
+
+    if (!ImGui_ImplSDL3_InitForOpenGL(
+        engine.window->GetWindow(),
+        engine.window->GetContext()))
+    {
+        LOG("Editor: ImGui SDL3 initialization failed");
+        ImGui::DestroyContext();
+        return false;
+    }
+
+    if (!ImGui_ImplOpenGL3_Init("#version 460"))
+    {
+        LOG("Editor: ImGui OpenGL initialization failed");
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
+        return false;
+    }
+
+    imguiInitialized = true;
+
     return true;
 }
-
 bool Editor::Start()
 {
     LOG("Editor::Start");
 
-    int width = 0, height = 0;
-    if (Engine::GetInstance().window != nullptr)
-    {
-        SDL_GetWindowSize(Engine::GetInstance().window->window, &width, &height);
-        if (height > 0)
-        {
-            camera.aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-            LOG("Camera AspectRatio updated to %.2f (%dx%d)", camera.aspectRatio, width, height);
-        }
-    }
-
+    // Conserva aquí tu inicialización del aspect ratio
+    // de la cámara que ya tienes implementada.
 
     return true;
 }
 
 bool Editor::PreUpdate()
 {
+    if (!imguiInitialized)
+        return true;
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
     return true;
 }
 
 bool Editor::Update(float dt)
 {
-    auto input = Engine::GetInstance().input;
-
-    // ========================================================
-    // 1. TECLADO (WASD / Q / E / Shift)
-    // ========================================================
-    const bool* keys = SDL_GetKeyboardState(nullptr);
-
-    if (keys[SDL_SCANCODE_W]) camera.ProcessKeyboard("FORWARD", dt);
-    if (keys[SDL_SCANCODE_S]) camera.ProcessKeyboard("BACKWARD", dt);
-    if (keys[SDL_SCANCODE_A]) camera.ProcessKeyboard("LEFT", dt);
-    if (keys[SDL_SCANCODE_D]) camera.ProcessKeyboard("RIGHT", dt);
-    if (keys[SDL_SCANCODE_E] || keys[SDL_SCANCODE_SPACE]) camera.ProcessKeyboard("UP", dt);
-    if (keys[SDL_SCANCODE_Q] || keys[SDL_SCANCODE_LSHIFT]) camera.ProcessKeyboard("DOWN", dt);
-
-    // ========================================================
-    // 2. ZOOM (RUEDA DEL RATÓN)
-    // ========================================================
-    int wheel = input->GetMouseWheel();
-    if (wheel != 0)
-    {
-        camera.ProcessMouseScroll((float)wheel);
-    }
-
-    // ========================================================
-    // 3. MOVIMIENTO Y BOTONES DEL RATÓN
-    // ========================================================
-    int mouseRelX = 0, mouseRelY = 0;
-    input->GetMouseMotion(mouseRelX, mouseRelY);
-
-    float xoffset = (float)mouseRelX;
-    float yoffset = -(float)mouseRelY; // Invertir Y para coordenadas OpenGL
-
-    // Lectura directa de estados mediante SDL_GetMouseState (100% fiable)
-    SDL_MouseButtonFlags mouseButtons = SDL_GetMouseState(nullptr, nullptr);
-
-    bool rightClick = (mouseButtons & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT)) != 0;
-    bool leftClick = (mouseButtons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) != 0;
-    bool middleClick = (mouseButtons & SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE)) != 0;
-    bool isAltPressed = keys[SDL_SCANCODE_LALT] || keys[SDL_SCANCODE_RALT];
-
-    // A) ROTACIÓN DE CÁMARA: Click Derecho + Arrastrar
-    if (rightClick && (xoffset != 0.0f || yoffset != 0.0f))
-    {
-        camera.ProcessMouseMovement(xoffset, yoffset);
-    }
-    // B) PAN SCREEN (Mover plano): Alt + Click Izquierdo OR Click Central + Arrastrar
-    else if (((isAltPressed && leftClick) || middleClick) && (xoffset != 0.0f || yoffset != 0.0f))
-    {
-        camera.ProcessMousePan(xoffset, yoffset, dt);
-    }
+    // Conserva aquí el código actual de movimiento de cámara,
+    // zoom y ratón.
 
     return true;
 }
 
 bool Editor::PostUpdate()
-{// Rendering
-// (Your code clears your framebuffer, renders your other stuff etc.)
+{
+    if (!imguiInitialized)
+        return true;
+
+    DrawDockspace();
+    DrawMainMenu();
+
+    if (showScene)
+        DrawSceneWindow();
+
+    if (showHierarchy)
+        DrawHierarchy();
+
+    if (showInspector)
+        DrawInspector();
+
+    if (showConsole)
+        DrawConsole();
+
     ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    // (Your code calls SDL_GL_SwapWindow() etc.)
+
+    ImGui_ImplOpenGL3_RenderDrawData(
+        ImGui::GetDrawData()
+    );
+
     return true;
+}
+
+void Editor::DrawDockspace()
+{
+    ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDocking |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoBackground;
+
+    const ImGuiViewport* viewport =
+        ImGui::GetMainViewport();
+
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGui::Begin("EditorDockspace", nullptr, flags);
+
+    ImGui::DockSpace(
+        ImGui::GetID("MainDockspace"),
+        ImVec2(0.0f, 0.0f)
+    );
+
+    ImGui::End();
+}
+
+void Editor::DrawMainMenu()
+{
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("Window"))
+        {
+            ImGui::MenuItem("Scene", nullptr, &showScene);
+            ImGui::MenuItem("Hierarchy", nullptr, &showHierarchy);
+            ImGui::MenuItem("Inspector", nullptr, &showInspector);
+            ImGui::MenuItem("Console", nullptr, &showConsole);
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+}
+
+void Editor::DrawSceneWindow()
+{
+    ImGui::Begin("Scene");
+
+    ImGui::TextUnformatted(
+        "Scene viewport - OpenGL rendering"
+    );
+
+    ImGui::Separator();
+
+    ImGui::TextWrapped(
+        ""
+    );
+
+    ImGui::End();
+}
+
+void Editor::DrawHierarchy()
+{
+    ImGui::Begin("Hierarchy");
+
+    auto scene = Engine::GetInstance().scene;
+
+    if (scene)
+    {
+        const auto& roots = scene->GetRootObjects();
+
+        for (const auto& object : roots)
+        {
+            if (object)
+                DrawHierarchyNode(*object);
+        }
+    }
+
+    if (ImGui::Button("Create GameObject"))
+    {
+        if (scene)
+        {
+            GameObject& object =
+                scene->CreateGameObject("GameObject");
+
+            selectedObject = &object;
+        }
+    }
+
+    ImGui::End();
+}
+
+void Editor::DrawHierarchyNode(GameObject& object)
+{
+    const bool hasChildren =
+        !object.GetChildren().empty();
+
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow |
+        ImGuiTreeNodeFlags_SpanAvailWidth;
+
+    if (!hasChildren)
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    if (selectedObject == &object)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    const bool opened = ImGui::TreeNodeEx(
+        static_cast<void*>(&object),
+        flags,
+        "%s",
+        object.GetName().c_str()
+    );
+
+    if (ImGui::IsItemClicked())
+        selectedObject = &object;
+
+    if (opened)
+    {
+        for (const auto& child : object.GetChildren())
+        {
+            if (child)
+                DrawHierarchyNode(*child);
+        }
+
+        ImGui::TreePop();
+    }
+}
+
+void Editor::DrawInspector()
+{
+    ImGui::Begin("Inspector");
+
+    if (selectedObject == nullptr)
+    {
+        ImGui::TextUnformatted("No GameObject selected");
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text(
+        "GameObject: %s",
+        selectedObject->GetName().c_str()
+    );
+
+    ImGui::Separator();
+
+    // ========================================================
+    // TRANSFORM
+    // ========================================================
+
+    Component* component =
+        selectedObject->GetComponent(
+            ComponentType::Transform
+        );
+
+    if (component != nullptr)
+    {
+        auto* transform =
+            static_cast<Transform*>(component);
+
+        if (ImGui::CollapsingHeader(
+            "Transform",
+            ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            glm::vec3 position = transform->GetPosition();
+            glm::vec3 rotation = transform->GetRotation();
+            glm::vec3 scale = transform->GetScale();
+
+            if (ImGui::DragFloat3(
+                "Position",
+                &position.x,
+                0.1f))
+            {
+                transform->SetPosition(position);
+            }
+
+            if (ImGui::DragFloat3(
+                "Rotation",
+                &rotation.x,
+                0.5f))
+            {
+                transform->SetRotation(rotation);
+            }
+
+            if (ImGui::DragFloat3(
+                "Scale",
+                &scale.x,
+                0.01f))
+            {
+                transform->SetScale(scale);
+            }
+
+            ImGui::Separator();
+        }
+    }
+
+    // ========================================================
+    // MESH RENDERER
+    // ========================================================
+
+    Component* renderer =
+        selectedObject->GetComponent(
+            ComponentType::MeshRenderer
+        );
+
+    if (renderer != nullptr)
+    {
+        if (ImGui::CollapsingHeader(
+            "Mesh Renderer",
+            ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            auto* meshRenderer =
+                static_cast<MeshRenderer*>(renderer);
+
+            ImGui::Text(
+                "Mesh index: %zu",
+                meshRenderer->GetMeshIndex()
+            );
+
+            ImGui::Text(
+                "Has mesh: %s",
+                meshRenderer->HasMesh() ? "Yes" : "No"
+            );
+        }
+    }
+
+    ImGui::End();
+}
+
+void Editor::DrawConsole()
+{
+    ImGui::Begin("Console");
+
+    if (ImGui::Button("Clear"))
+        consoleLogs.clear();
+
+    ImGui::SameLine();
+
+    ImGui::Text(
+        "Messages: %zu",
+        consoleLogs.size()
+    );
+
+    ImGui::Separator();
+
+    ImGui::BeginChild(
+        "ConsoleMessages",
+        ImVec2(0, 0),
+        ImGuiChildFlags_None,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
+
+    for (const std::string& message : consoleLogs)
+    {
+        ImGui::TextUnformatted(message.c_str());
+    }
+
+    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+        ImGui::SetScrollHereY(1.0f);
+
+    ImGui::EndChild();
+
+    ImGui::End();
+}
+
+void Editor::AddConsoleLog(const std::string& message)
+{
+    consoleLogs.push_back(message);
+}
+
+GameObject* Editor::GetSelectedObject() const
+{
+    return selectedObject;
 }
 
 bool Editor::CleanUp()
 {
     LOG("Editor::CleanUp");
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-    return true;
-}
 
-// ============================================================
-// FUNCIONES DE LA CÁMARA
-// ============================================================
-
-void Camera::ProcessMousePan(float xoffset, float yoffset, float dt)
-{
-    float panSpeed = 5.0f * dt;
-
-    // Mueve la posición de la cámara a lo largo de los vectores Right y Up
-    position -= right * (xoffset * panSpeed);
-    position -= up * (yoffset * panSpeed);
-}
-
-void Camera::ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch)
-{
-    xoffset *= mouseSensitivity;
-    yoffset *= mouseSensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (constrainPitch)
+    if (imguiInitialized)
     {
-        if (pitch > 89.0f) pitch = 89.0f;
-        if (pitch < -89.0f) pitch = -89.0f;
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
+
+        imguiInitialized = false;
     }
 
-    UpdateCameraVectors();
-}
-
-void Camera::ProcessMouseScroll(float yoffset)
-{
-    float zoomSpeed = 2.0f;
-    position += front * (yoffset * zoomSpeed);
-}
-
-void Camera::UpdateCameraVectors()
-{
-    glm::vec3 newFront;
-    newFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    newFront.y = sin(glm::radians(pitch));
-    newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-
-    front = glm::normalize(newFront);
-    right = glm::normalize(glm::cross(front, worldUp));
-    up = glm::normalize(glm::cross(right, front));
+    return true;
 }

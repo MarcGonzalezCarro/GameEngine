@@ -43,14 +43,11 @@ void Transform::SetScale(const glm::vec3& value)
 
 glm::mat4 Transform::GetLocalMatrix() const
 {
-    const glm::mat4 translation =
-        glm::translate(glm::mat4(1.0f), position);
+    const glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
 
-    const glm::mat4 rotationMatrix =
-        glm::mat4_cast(glm::quat(glm::radians(rotation)));
+    const glm::mat4 rotationMatrix = glm::mat4_cast(glm::quat(glm::radians(rotation)));
 
-    const glm::mat4 scaleMatrix =
-        glm::scale(glm::mat4(1.0f), scale);
+    const glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), scale);
 
     return translation * rotationMatrix * scaleMatrix;
 }
@@ -62,14 +59,12 @@ glm::mat4 Transform::GetWorldMatrix() const
     if (owner == nullptr || owner->GetParent() == nullptr)
         return local;
 
-    Component* component =
-        owner->GetParent()->GetComponent(ComponentType::Transform);
+    Component* component = owner->GetParent()->GetComponent(ComponentType::Transform);
 
     if (component == nullptr)
         return local;
 
-    const auto* parentTransform =
-        static_cast<const Transform*>(component);
+    const auto* parentTransform = static_cast<const Transform*>(component);
 
     return parentTransform->GetWorldMatrix() * local;
 }
