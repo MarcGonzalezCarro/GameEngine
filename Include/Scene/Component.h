@@ -11,6 +11,7 @@ enum class ComponentType
 {
     Transform,
     MeshRenderer,
+    Texture,
     Camera,
     Unknown
 };

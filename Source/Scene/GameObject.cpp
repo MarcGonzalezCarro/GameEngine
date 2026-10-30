@@ -3,6 +3,7 @@
 
 #include "Components/Transform.h"
 #include "Components/MeshRenderer.h"
+#include "Components/TextureComponent.h"
 
 // ============================================================
 // CONSTRUCTOR
@@ -16,6 +17,7 @@ GameObject::GameObject(
 {
     
     CreateComponent(ComponentType::Transform);
+    CreateComponent(ComponentType::Texture);
 }
 
 // ============================================================
@@ -25,7 +27,7 @@ GameObject::GameObject(
 Component& GameObject::CreateComponent(ComponentType type)
 {
     // Evitar componentes únicos duplicados.
-    if (type == ComponentType::Transform || type == ComponentType::MeshRenderer)
+    if (type == ComponentType::Transform || type == ComponentType::MeshRenderer || type == ComponentType::Texture)
     {
         Component* existing = GetComponent(type);
 
@@ -47,6 +49,11 @@ Component& GameObject::CreateComponent(ComponentType type)
     case ComponentType::MeshRenderer:
 
         component = std::make_unique<MeshRenderer>(this);
+        break;
+
+    case ComponentType::Texture:
+
+        component = std::make_unique<TextureComponent>(this);
         break;
 
     case ComponentType::Camera:

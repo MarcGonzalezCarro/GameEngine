@@ -7,13 +7,15 @@
 #include "Engine.h"
 #include "Window.h"
 #include "Editor.h"
+
+
 #include "Scene/Scene.h"
 #include "Scene/GameObject.h"
 #include "Components/MeshRenderer.h"
 #include "Components/Transform.h"
 #include <string>
 
-
+#include "Components/TextureComponent.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -675,9 +677,18 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
     );
     glEnableVertexAttribArray(2);
 
-    // Textura, si existe
-    if (!mesh.diffuseTexture.empty())
+    gpuMesh.textureID = 0;
+
+    if (mesh.diffuseTexture.empty())
     {
+        LOG("No texture assigned to imported mesh");
+    }
+    else
+    {
+        LOG(
+            "Loading original texture: %s",
+            mesh.diffuseTexture.c_str());
+
         Texture texture;
 
         if (Engine::GetInstance().resourceManager->LoadTexture(
@@ -685,6 +696,17 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
             texture))
         {
             gpuMesh.textureID = UploadTexture(texture);
+
+            LOG(
+                "Original texture uploaded: %s, ID=%u",
+                mesh.diffuseTexture.c_str(),
+                gpuMesh.textureID);
+        }
+        else
+        {
+            LOG(
+                "Failed to load original texture: %s",
+                mesh.diffuseTexture.c_str());
         }
     }
 
@@ -824,6 +846,74 @@ GLuint Render::UploadTexture(const Texture& texture)
     glBindTexture(GL_TEXTURE_2D, 0);
 
     return id;
+}
+
+// ============================================================
+// GET OR LOAD OVERRIDE TEXTURE
+// ============================================================
+
+GLuint Render::GetOrLoadOverrideTexture(
+    const std::string& path)
+{
+    if (path.empty())
+        return 0;
+
+    // --------------------------------------------------------
+    // 1. Comprobar si la textura ya está cargada
+    // --------------------------------------------------------
+
+    auto it = textureOverrides.find(path);
+
+    if (it != textureOverrides.end())
+    {
+        return it->second;
+    }
+
+    // --------------------------------------------------------
+    // 2. Cargar la imagen desde el disco
+    // --------------------------------------------------------
+
+    auto& resourceManager =
+        *Engine::GetInstance().resourceManager;
+
+    Texture texture;
+
+    if (!resourceManager.LoadTexture(path.c_str(), texture))
+    {
+        LOG(
+            "Failed to load texture override: %s",
+            path.c_str());
+
+        return 0;
+    }
+
+    // --------------------------------------------------------
+    // 3. Subir la textura a OpenGL
+    // --------------------------------------------------------
+
+    GLuint textureID = UploadTexture(texture);
+
+    if (textureID == 0)
+    {
+        LOG(
+            "Failed to upload texture override: %s",
+            path.c_str());
+
+        return 0;
+    }
+
+    // --------------------------------------------------------
+    // 4. Guardarla en la caché
+    // --------------------------------------------------------
+
+    textureOverrides.emplace(path, textureID);
+
+    LOG(
+        "Texture override loaded: %s (ID: %u)",
+        path.c_str(),
+        textureID);
+
+    return textureID;
 }
 
 // ============================================================
@@ -1009,6 +1099,7 @@ bool Render::PostUpdate()
                 Component* rendererComponent =
                     object.GetComponent(ComponentType::MeshRenderer);
 
+                
                 if (transformComponent != nullptr &&
                     rendererComponent != nullptr)
                 {
@@ -1043,9 +1134,27 @@ bool Render::PostUpdate()
                             glm::value_ptr(mvp)
                         );
 
-                        // ------------------------------------------------
-                        // MATERIAL: COLOR + TEXTURA
-                        // ------------------------------------------------
+                        // --------------------------------------------------------
+                        // MATERIAL: OVERRIDE MANUAL O TEXTURA ORIGINAL DEL FBX
+                        // --------------------------------------------------------
+
+                        // Por defecto, utilizar la textura original del mesh.
+                        GLuint textureID = gpuMesh.textureID;
+
+                        // Si existe un override manual, tiene prioridad.
+                        if (meshRenderer->HasTextureOverride())
+                        {
+                            const GLuint overrideID =
+                                GetOrLoadOverrideTexture(
+                                    meshRenderer->GetTexturePath());
+
+                            // Si la carga tiene éxito, utilizar el override.
+                            // Si falla, mantener la textura original del FBX.
+                            if (overrideID != 0)
+                            {
+                                textureID = overrideID;
+                            }
+                        }
 
                         glUniform4fv(
                             colorLoc,
@@ -1055,27 +1164,11 @@ bool Render::PostUpdate()
 
                         glUniform1i(
                             hasTextureLoc,
-                            gpuMesh.textureID != 0 ? GL_TRUE : GL_FALSE
+                            textureID != 0 ? GL_TRUE : GL_FALSE
                         );
 
                         glActiveTexture(GL_TEXTURE0);
-
-                        if (gpuMesh.textureID != 0)
-                        {
-                            glBindTexture(
-                                GL_TEXTURE_2D,
-                                gpuMesh.textureID
-                            );
-                        }
-                        else
-                        {
-                            // No hay textura: usar blanco como muestra neutra.
-                            glBindTexture(GL_TEXTURE_2D, 0);
-                        }
-
-                        // ----------------------------------------
-                        // DIBUJAR
-                        // ----------------------------------------
+                        glBindTexture(GL_TEXTURE_2D, textureID);
 
                         DrawMesh(gpuMesh);
                     }
@@ -1280,6 +1373,22 @@ bool Render::CleanUp()
         glDeleteFramebuffers(1, &sceneFBO);
         sceneFBO = 0;
     }
+
+    // --------------------------------------------------------
+    // Liberar texturas asignadas manualmente
+    // --------------------------------------------------------
+
+    for (const auto& entry : textureOverrides)
+    {
+        const GLuint textureID = entry.second;
+
+        if (textureID != 0)
+        {
+            glDeleteTextures(1, &textureID);
+        }
+    }
+
+    textureOverrides.clear();
 
     return ret;
 }

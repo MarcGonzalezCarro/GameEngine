@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "Scene/Component.h"
@@ -12,14 +11,17 @@ class MeshRenderer final : public Component
 public:
     explicit MeshRenderer(GameObject* owner);
 
+    // Mesh que se dibujará.
     void SetMeshIndex(std::size_t index);
     std::size_t GetMeshIndex() const;
     bool HasMesh() const;
 
+    // Textura asignada manualmente.
     void SetTexturePath(const std::string& path);
     const std::string& GetTexturePath() const;
     bool HasTextureOverride() const;
 
+    // Volver a la textura original del FBX.
     void ClearTextureOverride();
 
 private:
@@ -28,6 +30,6 @@ private:
 
     std::size_t meshIndex = InvalidIndex;
 
-    // Empty means use the diffuse texture from the imported mesh.
+    // Vacío = utilizar la textura original del mesh.
     std::string texturePath;
 };

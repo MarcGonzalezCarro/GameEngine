@@ -5,6 +5,7 @@
 #include "Scene/GameObject.h"
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
+#include <unordered_map>
 
 #include <glm/glm.hpp>
 #include <fstream>
@@ -24,6 +25,9 @@ struct MeshGPU
     GLuint EBO = 0;
 
     GLuint textureID = 0;
+
+    int textureWidth = 0;
+    int textureHeight = 0;
 
     glm::vec4 diffuseColor = glm::vec4(1.0f);
 
@@ -120,6 +124,15 @@ private:
     void BindSceneFramebuffer();
     void UnbindSceneFramebuffer();
 
-    
+    // ========================================================
+    // TEXTURAS ASIGNADAS MANUALMENTE
+    // ========================================================
+
+    // Relaciona cada ruta con su textura OpenGL.
+    // Evita cargar la misma imagen repetidamente.
+    std::unordered_map<std::string, GLuint> textureOverrides;
+
+    // Obtiene una textura de la caché o la carga si hace falta.
+    GLuint GetOrLoadOverrideTexture(const std::string& path);
     
 };

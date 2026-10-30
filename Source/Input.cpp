@@ -5,6 +5,8 @@
 #include "ResourceManager.h"
 #include "Render.h"
 
+#include "editor.h"
+#include "Components/MeshRenderer.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -177,7 +179,6 @@ bool Input::PreUpdate()
 
             }
 
-
             // ========================================================
             // TEXTURE
             // ========================================================
@@ -186,34 +187,71 @@ bool Input::PreUpdate()
                 extension == ".jpg" ||
                 extension == ".jpeg" ||
                 extension == ".tga" ||
-                extension == ".bmp")
+                extension == ".bmp" ||
+                extension == ".dds")
             {
-                Texture texture;
+                auto& engine = Engine::GetInstance();
 
+                // ----------------------------------------------------
+                // 1. Comprobar el editor
+                // ----------------------------------------------------
 
-                if (!engine.resourceManager->LoadTexture(
-                    droppedPath.c_str(),
-                    texture))
+                if (engine.editor == nullptr)
                 {
-                    LOG(
-                        "Failed to load texture: %s",
-                        droppedPath.c_str()
-                    );
-
+                    LOG("Cannot assign texture: Editor is null");
                     break;
                 }
 
+                // ----------------------------------------------------
+                // 2. Obtener el objeto seleccionado
+                // ----------------------------------------------------
 
-                GLuint textureID =
-                    engine.render->UploadTexture(texture);
+                GameObject* selectedObject =
+                    engine.editor->GetSelectedObject();
 
+                if (selectedObject == nullptr)
+                {
+                    LOG("Cannot assign texture: no GameObject selected");
+                    break;
+                }
+
+                // ----------------------------------------------------
+                // 3. Obtener o crear MeshRenderer
+                // ----------------------------------------------------
+
+                Component* component =
+                    selectedObject->GetComponent(
+                        ComponentType::MeshRenderer);
+
+                MeshRenderer* meshRenderer = nullptr;
+
+                if (component != nullptr)
+                {
+                    meshRenderer =
+                        static_cast<MeshRenderer*>(component);
+                }
+                else
+                {
+                    meshRenderer =
+                        static_cast<MeshRenderer*>(
+                            &selectedObject->CreateComponent(
+                                ComponentType::MeshRenderer));
+                }
+
+                // ----------------------------------------------------
+                // 4. Guardar la ruta de la textura
+                // ----------------------------------------------------
+
+                // Render cargará la imagen y la subirá a OpenGL
+                // cuando necesite dibujar este objeto.
+                meshRenderer->SetTexturePath(droppedPath);
 
                 LOG(
-                    "Texture loaded successfully: %s (ID: %u)",
-                    droppedPath.c_str(),
-                    textureID
-                );
+                    "Texture override assigned to '%s': %s",
+                    selectedObject->GetName().c_str(),
+                    droppedPath.c_str());
             }
+
 
 
             // ========================================================

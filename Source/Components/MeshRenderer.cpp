@@ -1,7 +1,4 @@
-
 #include "Components/MeshRenderer.h"
-
-#include <utility>
 
 MeshRenderer::MeshRenderer(GameObject* owner)
     : Component(owner, ComponentType::MeshRenderer)

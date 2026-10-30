@@ -6,6 +6,7 @@
 #include "Scene/Component.h"
 #include "Components/Transform.h"
 #include "Components/MeshRenderer.h"
+#include "Components/TextureComponent.h"
 #include "Log.h"
 #include "Window.h"
 #include "Render.h"
@@ -437,6 +438,84 @@ void Editor::DrawInspector()
                 "Has mesh: %s",
                 meshRenderer->HasMesh() ? "Yes" : "No"
             );
+        }
+    }
+
+    // ========================================================
+   // TEXTURE
+   // ========================================================
+
+    if (ImGui::CollapsingHeader(
+        "Texture",
+        ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        GLuint textureID = 0;
+        bool customTexture = false;
+
+        // 1. Textura asignada manualmente.
+        Component* textureBase =
+            selectedObject->GetComponent(
+                ComponentType::Texture);
+
+        if (textureBase != nullptr)
+        {
+            auto* textureComponent =
+                static_cast<TextureComponent*>(textureBase);
+
+            if (textureComponent->HasTexture())
+            {
+                textureID = textureComponent->GetTextureID();
+                customTexture = (textureID != 0);
+            }
+        }
+
+        // 2. Si no hay textura personalizada, usar la del FBX.
+        if (textureID == 0)
+        {
+            Component* rendererBase =
+                selectedObject->GetComponent(
+                    ComponentType::MeshRenderer);
+
+            if (rendererBase != nullptr)
+            {
+                auto* meshRenderer =
+                    static_cast<MeshRenderer*>(rendererBase);
+
+                const std::size_t index =
+                    meshRenderer->GetMeshIndex();
+
+                auto& render =
+                    *Engine::GetInstance().render;
+
+                if (meshRenderer->HasMesh() &&
+                    index < render.modelMeshes.size())
+                {
+                    textureID =
+                        render.modelMeshes[index].textureID;
+                }
+            }
+        }
+
+        ImGui::Separator();
+
+        ImGui::TextUnformatted(
+            customTexture
+            ? "Source: Custom texture"
+            : "Source: Imported mesh");
+
+        if (textureID != 0)
+        {
+            ImGui::Image(
+                (ImTextureID)(intptr_t)textureID,
+                ImVec2(200.0f, 200.0f),
+                ImVec2(0.0f, 1.0f),
+                ImVec2(1.0f, 0.0f)
+            );
+        }
+        else
+        {
+            ImGui::TextUnformatted(
+                "No texture assigned");
         }
     }
 
