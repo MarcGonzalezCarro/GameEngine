@@ -66,8 +66,8 @@ public:
         if (direction == "UP")       position += worldUp * velocity;
         if (direction == "DOWN")     position -= worldUp * velocity;
 
-        LOG("Camera Moving [%s] -> Pos: (%.2f, %.2f, %.2f)",
-            direction.c_str(), position.x, position.y, position.z);
+        /*LOG("Camera Moving [%s] -> Pos: (%.2f, %.2f, %.2f)",
+            direction.c_str(), position.x, position.y, position.z);*/
     }
 
     
@@ -143,6 +143,8 @@ private:
     bool showHierarchy = true;
     bool showInspector = true;
     bool showConsole = true;
+    bool sceneHovered = false;
+    bool sceneFocused = false;
 
 public:
     Camera camera;

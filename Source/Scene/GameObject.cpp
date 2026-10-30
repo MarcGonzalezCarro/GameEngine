@@ -14,7 +14,7 @@ GameObject::GameObject(
 )
     : name(name), parent(parent)
 {
-    // Todos los GameObject tienen Transform.
+    
     CreateComponent(ComponentType::Transform);
 }
 
@@ -25,8 +25,7 @@ GameObject::GameObject(
 Component& GameObject::CreateComponent(ComponentType type)
 {
     // Evitar componentes únicos duplicados.
-    if (type == ComponentType::Transform ||
-        type == ComponentType::MeshRenderer)
+    if (type == ComponentType::Transform || type == ComponentType::MeshRenderer)
     {
         Component* existing = GetComponent(type);
 
@@ -52,16 +51,14 @@ Component& GameObject::CreateComponent(ComponentType type)
 
     case ComponentType::Camera:
 
-        // Añadir aquí Camera cuando exista su clase.
-        // No crear una instancia de Component para simularla.
+        
         return CreateComponent(ComponentType::Unknown);
 
     case ComponentType::Unknown:
 
     default:
 
-        // Unknown no representa un componente funcional.
-        // Se evita crear componentes base genéricos.
+        
         return *components.front();
     }
 
@@ -80,10 +77,7 @@ GameObject& GameObject::CreateChild(
     const std::string& childName
 )
 {
-    auto child = std::make_unique<GameObject>(
-        childName,
-        this
-    );
+    auto child = std::make_unique<GameObject>(childName, this);
 
     GameObject& reference = *child;
 

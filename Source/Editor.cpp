@@ -8,6 +8,7 @@
 #include "Components/MeshRenderer.h"
 #include "Log.h"
 #include "Window.h"
+#include "Render.h"
 #include <imgui.h>
 #include <SDL3/SDL.h>
 #include <imgui_impl_sdl3.h>
@@ -91,8 +92,64 @@ bool Editor::PreUpdate()
 
 bool Editor::Update(float dt)
 {
-    // Conserva aquí el código actual de movimiento de cámara,
-    // zoom y ratón.
+    if (!imguiInitialized)
+        return true;
+
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Solo controlar la cámara cuando Scene tiene el foco.
+    if (sceneFocused && !io.WantTextInput)
+    {
+        // Movimiento con WASD, Q/E y flechas.
+        if (ImGui::IsKeyDown(ImGuiKey_W) ||
+            ImGui::IsKeyDown(ImGuiKey_UpArrow))
+        {
+            camera.ProcessKeyboard("FORWARD", dt);
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_S) ||
+            ImGui::IsKeyDown(ImGuiKey_DownArrow))
+        {
+            camera.ProcessKeyboard("BACKWARD", dt);
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_A) ||
+            ImGui::IsKeyDown(ImGuiKey_LeftArrow))
+        {
+            camera.ProcessKeyboard("LEFT", dt);
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_D) ||
+            ImGui::IsKeyDown(ImGuiKey_RightArrow))
+        {
+            camera.ProcessKeyboard("RIGHT", dt);
+        }
+
+        if (ImGui::IsKeyDown(ImGuiKey_E))
+            camera.ProcessKeyboard("UP", dt);
+
+        if (ImGui::IsKeyDown(ImGuiKey_Q))
+            camera.ProcessKeyboard("DOWN", dt);
+    }
+
+    if (
+        ImGui::IsMouseDown(ImGuiMouseButton_Right))
+    {
+        if (io.MouseDelta.x != 0.0f ||
+            io.MouseDelta.y != 0.0f)
+        {
+            camera.ProcessMouseMovement(
+                io.MouseDelta.x,
+                -io.MouseDelta.y
+            );
+        }
+    }
+
+    // Zoom: rueda del ratón sobre Scene.
+    if (sceneHovered && io.MouseWheel != 0.0f)
+    {
+        camera.ProcessMouseScroll(io.MouseWheel);
+    }
 
     return true;
 }
@@ -177,15 +234,42 @@ void Editor::DrawSceneWindow()
 {
     ImGui::Begin("Scene");
 
-    ImGui::TextUnformatted(
-        "Scene viewport - OpenGL rendering"
+    sceneHovered = ImGui::IsWindowHovered();
+    sceneFocused = ImGui::IsWindowFocused();
+
+    // Espacio disponible dentro de la ventana
+    ImVec2 available = ImGui::GetContentRegionAvail();
+
+    // Evitar dimensiones inválidas
+    int width = std::max(
+        1,
+        static_cast<int>(available.x)
     );
 
-    ImGui::Separator();
-
-    ImGui::TextWrapped(
-        ""
+    int height = std::max(
+        1,
+        static_cast<int>(available.y)
     );
+
+    auto& engine = Engine::GetInstance();
+     
+
+    if (engine.render != nullptr)
+    {
+        // Ajustar la resolución de la textura al viewport
+        engine.render->SetSceneViewportSize(width, height);
+
+        // Mostrar la textura OpenGL en ImGui
+        ImGui::Image(
+            (ImTextureID)(intptr_t)engine.render->GetSceneTexture(),
+            ImVec2(
+                static_cast<float>(width),
+                static_cast<float>(height)
+            ),
+            ImVec2(0.0f, 1.0f),
+            ImVec2(1.0f, 0.0f)
+        );
+    }
 
     ImGui::End();
 }
@@ -403,6 +487,60 @@ void Editor::AddConsoleLog(const std::string& message)
 GameObject* Editor::GetSelectedObject() const
 {
     return selectedObject;
+}
+
+void Camera::ProcessMouseMovement(
+    float xoffset,
+    float yoffset,
+    bool constrainPitch)
+{
+    xoffset *= mouseSensitivity;
+    yoffset *= mouseSensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (constrainPitch)
+    {
+        pitch = glm::clamp(pitch, -89.0f, 89.0f);
+    }
+
+    UpdateCameraVectors();
+}
+
+void Camera::ProcessMouseScroll(float yoffset)
+{
+    zoom -= yoffset;
+
+    zoom = glm::clamp(zoom, 1.0f, 90.0f);
+}
+
+void Camera::ProcessMousePan(
+    float xoffset,
+    float yoffset,
+    float dt)
+{
+    const float speed = movementSpeed * dt;
+
+    position -= right * xoffset * speed;
+    position += up * yoffset * speed;
+}
+
+void Camera::UpdateCameraVectors()
+{
+    glm::vec3 newFront;
+
+    newFront.x = cos(glm::radians(yaw)) *
+        cos(glm::radians(pitch));
+
+    newFront.y = sin(glm::radians(pitch));
+
+    newFront.z = sin(glm::radians(yaw)) *
+        cos(glm::radians(pitch));
+
+    front = glm::normalize(newFront);
+    right = glm::normalize(glm::cross(front, worldUp));
+    up = glm::normalize(glm::cross(right, front));
 }
 
 bool Editor::CleanUp()

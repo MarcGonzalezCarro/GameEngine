@@ -13,7 +13,7 @@
 #include "Components/Transform.h"
 #include <string>
 
-#include <glm/glm.hpp>
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -552,6 +552,12 @@ bool Render::Awake()
     //// FIN AWAKE
     //// ========================================================
 
+    if (!CreateSceneFramebuffer(1280, 720))
+    {
+        LOG("Failed to create scene framebuffer");
+        return false;
+    }
+
     return ret;
 }
 
@@ -616,34 +622,18 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
 {
     MeshGPU gpuMesh;
 
+    // Material
+    gpuMesh.diffuseColor = mesh.diffuseColor;
+    gpuMesh.textureID = 0;
+    gpuMesh.num_indices = mesh.num_indices;
 
-    // ========================================================
     // VAO
-    // ========================================================
+    glGenVertexArrays(1, &gpuMesh.VAO);
+    glBindVertexArray(gpuMesh.VAO);
 
-    glGenVertexArrays(
-        1,
-        &gpuMesh.VAO
-    );
-
-    glBindVertexArray(
-        gpuMesh.VAO
-    );
-
-
-    // ========================================================
     // VBO
-    // ========================================================
-
-    glGenBuffers(
-        1,
-        &gpuMesh.VBO
-    );
-
-    glBindBuffer(
-        GL_ARRAY_BUFFER,
-        gpuMesh.VBO
-    );
+    glGenBuffers(1, &gpuMesh.VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, gpuMesh.VBO);
 
     glBufferData(
         GL_ARRAY_BUFFER,
@@ -652,20 +642,9 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
         GL_STATIC_DRAW
     );
 
-
-    // ========================================================
     // EBO
-    // ========================================================
-
-    glGenBuffers(
-        1,
-        &gpuMesh.EBO
-    );
-
-    glBindBuffer(
-        GL_ELEMENT_ARRAY_BUFFER,
-        gpuMesh.EBO
-    );
+    glGenBuffers(1, &gpuMesh.EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuMesh.EBO);
 
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER,
@@ -674,48 +653,7 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
         GL_STATIC_DRAW
     );
 
-    if (!mesh.diffuseTexture.empty())
-    {
-        Texture texture;
-
-        if (Engine::GetInstance()
-            .resourceManager
-            ->LoadTexture(
-                mesh.diffuseTexture.c_str(),
-                texture))
-        {
-            gpuMesh.textureID =
-                UploadTexture(texture);
-
-            LOG(
-                "Texture uploaded for mesh: %s",
-                mesh.diffuseTexture.c_str()
-            );
-        }
-        else
-        {
-            LOG(
-                "Could not load mesh texture: %s",
-                mesh.diffuseTexture.c_str()
-            );
-        }
-    }
-
-    // ========================================================
-    // VERTEX ATTRIBUTE
-    //
-    // De momento Assimp nos da únicamente:
-    //
-    // position.x
-    // position.y
-    // position.z
-    //
-    // ========================================================
-
-    // ========================================================
-    // POSITION
-    // ========================================================
-
+    // Posición XYZ
     glVertexAttribPointer(
         0,
         3,
@@ -724,14 +662,9 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
         5 * sizeof(float),
         (void*)0
     );
-
     glEnableVertexAttribArray(0);
 
-
-    // ========================================================
     // UV
-    // ========================================================
-
     glVertexAttribPointer(
         2,
         2,
@@ -740,41 +673,41 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
         5 * sizeof(float),
         (void*)(3 * sizeof(float))
     );
-
     glEnableVertexAttribArray(2);
 
+    // Textura, si existe
+    if (!mesh.diffuseTexture.empty())
+    {
+        Texture texture;
 
-    // ========================================================
-    // FINAL
-    // ========================================================
-
-    gpuMesh.num_indices =
-        mesh.num_indices;
-
+        if (Engine::GetInstance().resourceManager->LoadTexture(
+            mesh.diffuseTexture.c_str(),
+            texture))
+        {
+            gpuMesh.textureID = UploadTexture(texture);
+        }
+    }
 
     glBindVertexArray(0);
-
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     LOG(
-        "Mesh uploaded to GPU: %d vertices, %d indices",
-        mesh.num_vertices,
-        mesh.num_indices
+        "GPU material: R=%.2f G=%.2f B=%.2f, texture=%u",
+        gpuMesh.diffuseColor.r,
+        gpuMesh.diffuseColor.g,
+        gpuMesh.diffuseColor.b,
+        gpuMesh.textureID
     );
-
 
     return gpuMesh;
 }
-
 // ============================================================
 // DRAW MESH
 // ============================================================
 
 void Render::DrawMesh(const MeshGPU& mesh)
 {
-    glBindVertexArray(
-        mesh.VAO
-    );
-
+    glBindVertexArray(mesh.VAO);
 
     glDrawElements(
         GL_TRIANGLES,
@@ -782,7 +715,6 @@ void Render::DrawMesh(const MeshGPU& mesh)
         GL_UNSIGNED_INT,
         nullptr
     );
-
 
     glBindVertexArray(0);
 }
@@ -1011,6 +943,9 @@ bool Render::Update(float dt)
 // Called after each loop iteration
 bool Render::PostUpdate()
 {
+
+    BindSceneFramebuffer();
+
     // ========================================================
     // CÁMARA
     // ========================================================
@@ -1032,11 +967,18 @@ bool Render::PostUpdate()
 
     glUseProgram(shaderProgram);
 
+
     const GLint mvpLoc =
         glGetUniformLocation(shaderProgram, "mvp");
 
+    const GLint hasTextureLoc =
+        glGetUniformLocation(shaderProgram, "hasTexture");
+
     const GLint textureLoc =
         glGetUniformLocation(shaderProgram, "diffuseTexture");
+
+    const GLint colorLoc =
+        glGetUniformLocation(shaderProgram, "diffuseColor");
 
     glUniform1i(textureLoc, 0);
 
@@ -1101,16 +1043,35 @@ bool Render::PostUpdate()
                             glm::value_ptr(mvp)
                         );
 
-                        // ----------------------------------------
-                        // TEXTURA
-                        // ----------------------------------------
+                        // ------------------------------------------------
+                        // MATERIAL: COLOR + TEXTURA
+                        // ------------------------------------------------
+
+                        glUniform4fv(
+                            colorLoc,
+                            1,
+                            glm::value_ptr(gpuMesh.diffuseColor)
+                        );
+
+                        glUniform1i(
+                            hasTextureLoc,
+                            gpuMesh.textureID != 0 ? GL_TRUE : GL_FALSE
+                        );
 
                         glActiveTexture(GL_TEXTURE0);
 
-                        glBindTexture(
-                            GL_TEXTURE_2D,
-                            gpuMesh.textureID
-                        );
+                        if (gpuMesh.textureID != 0)
+                        {
+                            glBindTexture(
+                                GL_TEXTURE_2D,
+                                gpuMesh.textureID
+                            );
+                        }
+                        else
+                        {
+                            // No hay textura: usar blanco como muestra neutra.
+                            glBindTexture(GL_TEXTURE_2D, 0);
+                        }
 
                         // ----------------------------------------
                         // DIBUJAR
@@ -1148,6 +1109,7 @@ bool Render::PostUpdate()
     glBindVertexArray(0);
     glUseProgram(0);
 
+    UnbindSceneFramebuffer();
     return true;
 }
 
@@ -1299,6 +1261,26 @@ bool Render::CleanUp()
 
     modelMeshes.clear();
 
+    UnbindSceneFramebuffer();
+
+    if (sceneDepthRBO != 0)
+    {
+        glDeleteRenderbuffers(1, &sceneDepthRBO);
+        sceneDepthRBO = 0;
+    }
+
+    if (sceneTexture != 0)
+    {
+        glDeleteTextures(1, &sceneTexture);
+        sceneTexture = 0;
+    }
+
+    if (sceneFBO != 0)
+    {
+        glDeleteFramebuffers(1, &sceneFBO);
+        sceneFBO = 0;
+    }
+
     return ret;
 }
 
@@ -1393,6 +1375,7 @@ void Render::DrawGrid()
     );
 
     glBindVertexArray(0);
+
 }
 
 void Render::CreateMeshObjects(
@@ -1429,6 +1412,183 @@ void Render::CreateMeshObjects(
         LOG("HasMesh: %s",
             renderer.HasMesh() ? "true" : "false");
     }
+}
+
+bool Render::CreateSceneFramebuffer(int width, int height)
+{
+    width = std::max(width, 1);
+    height = std::max(height, 1);
+
+    sceneWidth = width;
+    sceneHeight = height;
+
+    // Framebuffer
+    glGenFramebuffers(1, &sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+
+    // Textura de color
+    glGenTextures(1, &sceneTexture);
+    glBindTexture(GL_TEXTURE_2D, sceneTexture);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA8,
+        width,
+        height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MIN_FILTER,
+        GL_LINEAR
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_MAG_FILTER,
+        GL_LINEAR
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_WRAP_S,
+        GL_CLAMP_TO_EDGE
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D,
+        GL_TEXTURE_WRAP_T,
+        GL_CLAMP_TO_EDGE
+    );
+
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER,
+        GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_2D,
+        sceneTexture,
+        0
+    );
+
+    // Profundidad + stencil
+    glGenRenderbuffers(1, &sceneDepthRBO);
+    glBindRenderbuffer(
+        GL_RENDERBUFFER,
+        sceneDepthRBO
+    );
+
+    glRenderbufferStorage(
+        GL_RENDERBUFFER,
+        GL_DEPTH24_STENCIL8,
+        width,
+        height
+    );
+
+    glFramebufferRenderbuffer(
+        GL_FRAMEBUFFER,
+        GL_DEPTH_STENCIL_ATTACHMENT,
+        GL_RENDERBUFFER,
+        sceneDepthRBO
+    );
+
+    // Comprobar que el framebuffer es válido
+    const GLenum status =
+        glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        LOG("Scene framebuffer is incomplete: %u", status);
+        return false;
+    }
+
+    LOG("Scene framebuffer created: %dx%d", width, height);
+
+    return true;
+}
+
+void Render::ResizeSceneFramebuffer(int width, int height)
+{
+    width = std::max(width, 1);
+    height = std::max(height, 1);
+
+    if (width == sceneWidth && height == sceneHeight)
+        return;
+
+    sceneWidth = width;
+    sceneHeight = height;
+
+    // Redimensionar textura de color
+    glBindTexture(GL_TEXTURE_2D, sceneTexture);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA8,
+        width,
+        height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        nullptr
+    );
+
+    // Redimensionar buffer de profundidad
+    glBindRenderbuffer(GL_RENDERBUFFER, sceneDepthRBO);
+
+    glRenderbufferStorage(
+        GL_RENDERBUFFER,
+        GL_DEPTH24_STENCIL8,
+        width,
+        height
+    );
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+}
+
+void Render::SetSceneViewportSize(int width, int height)
+{
+    ResizeSceneFramebuffer(width, height);
+}
+void Render::BindSceneFramebuffer()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+
+    glViewport(0, 0, sceneWidth, sceneHeight);
+
+    glClearColor(0.12f, 0.12f, 0.14f, 1.0f);
+
+    glClear(
+        GL_COLOR_BUFFER_BIT |
+        GL_DEPTH_BUFFER_BIT |
+        GL_STENCIL_BUFFER_BIT
+    );
+}
+
+void Render::UnbindSceneFramebuffer()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Restaura el viewport de la ventana SDL.
+    // Sustituye estas dimensiones por las de tu módulo Window.
+    int width = 1;
+    int height = 1;
+
+    SDL_GetWindowSizeInPixels(
+        Engine::GetInstance().window->GetWindow(),
+        &width,
+        &height
+    );
+
+    glViewport(0, 0, width, height);
 }
 //Framebuffers para el imgui
 //Utilizar stack/LIFO para gameObjects (DFS)

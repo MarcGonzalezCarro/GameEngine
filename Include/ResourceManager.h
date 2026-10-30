@@ -8,6 +8,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 
 struct Texture
 {
@@ -25,33 +26,19 @@ struct Texture
 
 struct Mesh
 {
-    // --------------------------------------------------------
     // Vértices
-    // --------------------------------------------------------
-
     GLuint num_vertices = 0;
     float* vertices = nullptr;
 
-
-    // --------------------------------------------------------
     // Índices
-    // --------------------------------------------------------
-
     GLuint num_indices = 0;
     GLuint* indices = nullptr;
 
+    // Material
     std::string diffuseTexture;
-
-    // --------------------------------------------------------
-    // Constructor
-    // --------------------------------------------------------
+    glm::vec4 diffuseColor = glm::vec4(1.0f);
 
     Mesh() = default;
-
-
-    // --------------------------------------------------------
-    // Destructor
-    // --------------------------------------------------------
 
     ~Mesh()
     {
@@ -62,19 +49,11 @@ struct Mesh
         indices = nullptr;
     }
 
-
-    // --------------------------------------------------------
     // Evitar copias accidentales
-    // --------------------------------------------------------
-
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
 
-
-    // --------------------------------------------------------
-    // Permitir movimiento
-    // --------------------------------------------------------
-
+    // Constructor de movimiento
     Mesh(Mesh&& other) noexcept
     {
         num_vertices = other.num_vertices;
@@ -84,6 +63,7 @@ struct Mesh
         indices = other.indices;
 
         diffuseTexture = std::move(other.diffuseTexture);
+        diffuseColor = other.diffuseColor;
 
         other.num_vertices = 0;
         other.vertices = nullptr;
@@ -92,6 +72,7 @@ struct Mesh
         other.indices = nullptr;
     }
 
+    // Operador de movimiento
     Mesh& operator=(Mesh&& other) noexcept
     {
         if (this != &other)
@@ -106,6 +87,7 @@ struct Mesh
             indices = other.indices;
 
             diffuseTexture = std::move(other.diffuseTexture);
+            diffuseColor = other.diffuseColor;
 
             other.num_vertices = 0;
             other.vertices = nullptr;

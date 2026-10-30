@@ -11,6 +11,7 @@
 #include <IL/il.h>
 #include <IL/ilu.h>
 #include <IL/ilut.h>
+#include <glm/ext/vector_float4.hpp>
 
 // ============================================================
 // CONSTRUCTOR / DESTRUCTOR
@@ -121,15 +122,13 @@ bool ResourceManager::LoadModel(const char* file_path)
 
     std::string modelPath = file_path;
 
-    size_t lastSlash =
-        modelPath.find_last_of("/\\");
+    size_t lastSlash = modelPath.find_last_of("/\\");
 
     std::string modelDirectory;
 
     if (lastSlash != std::string::npos)
     {
-        modelDirectory =
-            modelPath.substr(0, lastSlash + 1);
+        modelDirectory = modelPath.substr(0, lastSlash + 1);
     }
 
     // ========================================================
@@ -142,28 +141,47 @@ bool ResourceManager::LoadModel(const char* file_path)
         aiProcess_Triangulate
     );
 
+    if (scene == nullptr)
+    {
+        LOG(
+            "Error loading scene %s: %s",
+            file_path,
+            aiGetErrorString()
+        );
+
+        return false;
+    }
+
+    if (!scene->HasMeshes())
+    {
+        LOG("Scene contains no meshes: %s", file_path);
+
+        aiReleaseImport(scene);
+        return false;
+    }
+
     auto engineScene = Engine::GetInstance().scene;
 
     if (!engineScene)
     {
         LOG("ERROR: No active scene available");
+
         aiReleaseImport(scene);
         return false;
     }
-
+    
     std::string modelName = modelPath.substr(lastSlash + 1);
 
-    // Eliminar la extensión del fichero.
-    size_t dot = modelName.find_last_of('.');
+    const size_t dot = modelName.find_last_of('.');
 
     if (dot != std::string::npos)
     {
         modelName = modelName.substr(0, dot);
     }
 
-    // Crear el GameObject vacío que representa el modelo.
     GameObject& modelObject =
         engineScene->CreateGameObject(modelName);
+
     // ========================================================
     // COMPROBAR RESULTADO
     // ========================================================
@@ -211,6 +229,8 @@ bool ResourceManager::LoadModel(const char* file_path)
     for (GLuint i = 0; i < scene->mNumMeshes; ++i)
     {
         const aiMesh* ai_mesh = scene->mMeshes[i];
+
+
 
         if (ai_mesh == nullptr)
         {
@@ -343,6 +363,35 @@ bool ResourceManager::LoadModel(const char* file_path)
         {
             const aiMaterial* material =
                 scene->mMaterials[ai_mesh->mMaterialIndex];
+
+            // ========================================================
+            // COLOR DIFUSO DEL MATERIAL
+            // ========================================================
+
+            aiColor4D diffuseColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+            if (aiGetMaterialColor(
+                material,
+                AI_MATKEY_COLOR_DIFFUSE,
+                &diffuseColor) == AI_SUCCESS)
+            {
+                mesh.diffuseColor = glm::vec4(
+                    diffuseColor.r,
+                    diffuseColor.g,
+                    diffuseColor.b,
+                    diffuseColor.a
+                );
+            }
+            else
+            {
+                mesh.diffuseColor = glm::vec4(1.0f);
+            }
+
+            LOG("Mesh %d diffuse color: R=%.2f G=%.2f B=%.2f",
+                i,
+                mesh.diffuseColor.r,
+                mesh.diffuseColor.g,
+                mesh.diffuseColor.b);
 
             if (material->GetTextureCount(
                 aiTextureType_DIFFUSE) > 0)

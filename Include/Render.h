@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 
+#include <glm/glm.hpp>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -23,6 +24,8 @@ struct MeshGPU
     GLuint EBO = 0;
 
     GLuint textureID = 0;
+
+    glm::vec4 diffuseColor = glm::vec4(1.0f);
 
     unsigned int num_indices = 0;
 };
@@ -50,7 +53,12 @@ public:
 
     void CreateGrid();
 
+    GLuint GetSceneTexture() const
+    {
+        return sceneTexture;
+    }
 
+    void SetSceneViewportSize(int width, int height);
     // ========================================================
     // MESH
     // ========================================================
@@ -98,5 +106,20 @@ private:
     void DrawGrid();
 
     void CreateMeshObjects(GameObject& parent, std::size_t firstMesh, std::size_t meshCount);
+
+    // Framebuffer del Scene Viewport
+    GLuint sceneFBO = 0;
+    GLuint sceneTexture = 0;
+    GLuint sceneDepthRBO = 0;
+
+    int sceneWidth = 1;
+    int sceneHeight = 1;
+
+    bool CreateSceneFramebuffer(int width, int height);
+    void ResizeSceneFramebuffer(int width, int height);
+    void BindSceneFramebuffer();
+    void UnbindSceneFramebuffer();
+
+    
     
 };

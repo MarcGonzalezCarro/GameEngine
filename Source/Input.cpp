@@ -100,43 +100,28 @@ bool Input::PreUpdate()
 
             std::string extension;
 
-            size_t dot =
-                droppedPath.find_last_of('.');
+            size_t dot = droppedPath.find_last_of('.');
 
             if (dot != std::string::npos)
             {
-                extension =
-                    droppedPath.substr(dot);
+                extension = droppedPath.substr(dot);
 
-                std::transform(
-                    extension.begin(),
-                    extension.end(),
-                    extension.begin(),
-                    [](unsigned char c)
+                std::transform(extension.begin(), extension.end(), extension.begin(),[](unsigned char c)
                     {
-                        return static_cast<char>(
-                            std::tolower(c)
-                            );
+                        return static_cast<char>(std::tolower(c));
                     }
                 );
             }
 
 
-            std::transform(
-                extension.begin(),
-                extension.end(),
-                extension.begin(),
-                [](unsigned char c)
+            std::transform(extension.begin(), extension.end(), extension.begin(),[](unsigned char c)
                 {
-                    return static_cast<char>(
-                        std::tolower(c)
-                        );
+                    return static_cast<char>(std::tolower(c));
                 }
             );
 
 
-            auto& engine =
-                Engine::GetInstance();
+            auto& engine = Engine::GetInstance();
 
 
             // ========================================================
@@ -148,48 +133,48 @@ bool Input::PreUpdate()
                 extension == ".gltf" ||
                 extension == ".glb")
             {
-                if (!engine.resourceManager->LoadModel(
-                    droppedPath.c_str()))
-                {
-                    LOG(
-                        "Failed to load model: %s",
-                        droppedPath.c_str()
-                    );
 
+                auto& resourceManager = *engine.resourceManager;
+                auto& render = *engine.render;
+
+                // Guardar cuántos meshes había ANTES de importar.
+                const std::size_t firstNewMesh =
+                    resourceManager.GetMeshes().size();
+
+                // Cargar el nuevo modelo.
+                // LoadModel crea el GameObject y sus MeshRenderer.
+                if (!resourceManager.LoadModel(droppedPath.c_str()))
+                {
+                    LOG("Failed to load model: %s", droppedPath.c_str());
                     break;
                 }
 
-
-                // Eliminar modelo anterior
-                for (MeshGPU& gpuMesh :
-                    engine.render->modelMeshes)
-                {
-                    engine.render->DeleteMesh(gpuMesh);
-                }
-
-                engine.render->modelMeshes.clear();
-
-
-                // Subir nuevo modelo
                 const std::vector<Mesh>& meshes =
-                    engine.resourceManager->GetMeshes();
+                    resourceManager.GetMeshes();
 
+                const std::size_t totalMeshes = meshes.size();
 
-                for (const Mesh& mesh : meshes)
+                // Comprobar que se han añadido meshes.
+                if (totalMeshes <= firstNewMesh)
                 {
-                    MeshGPU gpuMesh =
-                        engine.render->UploadMesh(mesh);
-
-                    engine.render->modelMeshes.push_back(
-                        gpuMesh
-                    );
+                    LOG("No new meshes loaded: %s", droppedPath.c_str());
+                    break;
                 }
 
+                // Subir SOLO los meshes del modelo recién importado.
+                for (std::size_t i = firstNewMesh; i < totalMeshes; ++i)
+                {
+                    MeshGPU gpuMesh = render.UploadMesh(meshes[i]);
+                    render.modelMeshes.push_back(gpuMesh);
+                }
 
                 LOG(
-                    "Model loaded successfully: %s",
-                    droppedPath.c_str()
+                    "Model loaded: %s. New meshes: %d, GPU start index: %d",
+                    droppedPath.c_str(),
+                    static_cast<int>(totalMeshes - firstNewMesh),
+                    static_cast<int>(firstNewMesh)
                 );
+
             }
 
 
