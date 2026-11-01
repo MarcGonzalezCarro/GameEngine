@@ -31,6 +31,14 @@ public:
     float nearPlane = 0.1f;
     float farPlane = 1000.0f;
 
+    // Orbit camera
+    glm::vec3 orbitTarget = glm::vec3(0.0f);
+    float orbitDistance = 5.0f;
+    bool orbitEnabled = false;
+
+    // Velocidad rápida con SHIFT
+    float fastMovementMultiplier = 2.0f;
+
     Camera(glm::vec3 startPosition = glm::vec3(0.0f, 0.0f, 3.0f),
         glm::vec3 startUp = glm::vec3(0.0f, 1.0f, 0.0f),
         float startYaw = -90.0f,
@@ -54,23 +62,43 @@ public:
         return glm::lookAt(position, position + front, up);
     }
 
-    void ProcessKeyboard(const std::string& direction, float deltaTime)
+    void Camera::ProcessKeyboard(
+        const std::string& direction,
+        float deltaTime,
+        bool fast
+    )
     {
-        float velocity = movementSpeed * deltaTime;
-        glm::vec3 oldPos = position;
+        float speed = movementSpeed;
 
-        if (direction == "FORWARD")  position += front * velocity;
-        if (direction == "BACKWARD") position -= front * velocity;
-        if (direction == "LEFT")     position -= right * velocity;
-        if (direction == "RIGHT")    position += right * velocity;
-        if (direction == "UP")       position += worldUp * velocity;
-        if (direction == "DOWN")     position -= worldUp * velocity;
+        if (fast)
+            speed *= fastMovementMultiplier;
 
-        /*LOG("Camera Moving [%s] -> Pos: (%.2f, %.2f, %.2f)",
-            direction.c_str(), position.x, position.y, position.z);*/
+        const float velocity = speed * deltaTime;
+
+        if (direction == "FORWARD")
+            position += front * velocity;
+
+        if (direction == "BACKWARD")
+            position -= front * velocity;
+
+        if (direction == "LEFT")
+            position -= right * velocity;
+
+        if (direction == "RIGHT")
+            position += right * velocity;
+
+        if (direction == "UP")
+            position += worldUp * velocity;
+
+        if (direction == "DOWN")
+            position -= worldUp * velocity;
     }
 
     
+    bool IsOrbitEnabled() const
+    {
+        return orbitEnabled;
+    }
 
     // Método de utilidad para imprimir el estado actual en cualquier momento
     void LogState() const
@@ -100,6 +128,13 @@ public:
     void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true);
     void ProcessMouseScroll(float yoffset);
     void UpdateCameraVectors();
+    void ProcessMouseOrbit(float xoffset, float yoffset);
+
+    void Focus(const glm::vec3& target, float distance = 5.0f);
+
+    void ClearOrbitTarget();
+
+    void UpdateOrbitPosition();
 };
 
 class GameObject;

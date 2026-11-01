@@ -73,8 +73,7 @@ bool Editor::Start()
 {
     LOG("Editor::Start");
 
-    // Conserva aquí tu inicialización del aspect ratio
-    // de la cámara que ya tienes implementada.
+    
 
     return true;
 }
@@ -98,44 +97,93 @@ bool Editor::Update(float dt)
 
     ImGuiIO& io = ImGui::GetIO();
 
-    // Solo controlar la cámara cuando Scene tiene el foco.
-    if (sceneFocused && !io.WantTextInput)
+    const bool rightMouse =
+        ImGui::IsMouseDown(ImGuiMouseButton_Right);
+
+    const bool leftMouse =
+        ImGui::IsMouseDown(ImGuiMouseButton_Left);
+
+    const bool altPressed =
+        ImGui::IsKeyDown(ImGuiKey_LeftAlt) ||
+        ImGui::IsKeyDown(ImGuiKey_RightAlt);
+
+    const bool shiftPressed =
+        ImGui::IsKeyDown(ImGuiKey_LeftShift) ||
+        ImGui::IsKeyDown(ImGuiKey_RightShift);
+
+    // ========================================================
+    // FOCUS - TECLA F
+    // ========================================================
+
+    if (sceneFocused &&
+        !io.WantTextInput &&
+        ImGui::IsKeyPressed(ImGuiKey_F))
     {
-        // Movimiento con WASD, Q/E y flechas.
-        if (ImGui::IsKeyDown(ImGuiKey_W) ||
-            ImGui::IsKeyDown(ImGuiKey_UpArrow))
+        if (selectedObject != nullptr)
         {
-            camera.ProcessKeyboard("FORWARD", dt);
+            Component* component =
+                selectedObject->GetComponent(
+                    ComponentType::Transform
+                );
+
+            if (component != nullptr)
+            {
+                auto* transform =
+                    static_cast<Transform*>(component);
+
+                camera.Focus(
+                    transform->GetPosition(),
+                    5.0f
+                );
+            }
         }
-
-        if (ImGui::IsKeyDown(ImGuiKey_S) ||
-            ImGui::IsKeyDown(ImGuiKey_DownArrow))
-        {
-            camera.ProcessKeyboard("BACKWARD", dt);
-        }
-
-        if (ImGui::IsKeyDown(ImGuiKey_A) ||
-            ImGui::IsKeyDown(ImGuiKey_LeftArrow))
-        {
-            camera.ProcessKeyboard("LEFT", dt);
-        }
-
-        if (ImGui::IsKeyDown(ImGuiKey_D) ||
-            ImGui::IsKeyDown(ImGuiKey_RightArrow))
-        {
-            camera.ProcessKeyboard("RIGHT", dt);
-        }
-
-        if (ImGui::IsKeyDown(ImGuiKey_E))
-            camera.ProcessKeyboard("UP", dt);
-
-        if (ImGui::IsKeyDown(ImGuiKey_Q))
-            camera.ProcessKeyboard("DOWN", dt);
     }
 
-    if (
-        ImGui::IsMouseDown(ImGuiMouseButton_Right))
+    // ========================================================
+    // FREE LOOK - RIGHT MOUSE + WASD
+    // ========================================================
+
+    if (sceneFocused &&
+        sceneHovered &&
+        rightMouse)
     {
+        // Salir del modo órbita al entrar en FPS.
+        camera.ClearOrbitTarget();
+
+        if (!io.WantTextInput)
+        {
+            if (ImGui::IsKeyDown(ImGuiKey_W))
+                camera.ProcessKeyboard(
+                    "FORWARD", dt, shiftPressed
+                );
+
+            if (ImGui::IsKeyDown(ImGuiKey_S))
+                camera.ProcessKeyboard(
+                    "BACKWARD", dt, shiftPressed
+                );
+
+            if (ImGui::IsKeyDown(ImGuiKey_A))
+                camera.ProcessKeyboard(
+                    "LEFT", dt, shiftPressed
+                );
+
+            if (ImGui::IsKeyDown(ImGuiKey_D))
+                camera.ProcessKeyboard(
+                    "RIGHT", dt, shiftPressed
+                );
+
+            if (ImGui::IsKeyDown(ImGuiKey_E))
+                camera.ProcessKeyboard(
+                    "UP", dt, shiftPressed
+                );
+
+            if (ImGui::IsKeyDown(ImGuiKey_Q))
+                camera.ProcessKeyboard(
+                    "DOWN", dt, shiftPressed
+                );
+        }
+
+        // Rotación con el ratón.
         if (io.MouseDelta.x != 0.0f ||
             io.MouseDelta.y != 0.0f)
         {
@@ -146,7 +194,49 @@ bool Editor::Update(float dt)
         }
     }
 
-    // Zoom: rueda del ratón sobre Scene.
+    // ========================================================
+    // ORBIT - ALT + LEFT MOUSE
+    // ========================================================
+
+    else if (sceneFocused &&
+        sceneHovered &&
+        altPressed &&
+        leftMouse)
+    {
+        // Si todavía no tenemos objetivo, usar el seleccionado.
+        if (!camera.IsOrbitEnabled() && selectedObject != nullptr)
+        {
+            Component* component =
+                selectedObject->GetComponent(
+                    ComponentType::Transform
+                );
+
+            if (component != nullptr)
+            {
+                auto* transform =
+                    static_cast<Transform*>(component);
+
+                camera.Focus(
+                    transform->GetPosition(),
+                    5.0f
+                );
+            }
+        }
+
+        if (io.MouseDelta.x != 0.0f ||
+            io.MouseDelta.y != 0.0f)
+        {
+            camera.ProcessMouseOrbit(
+                io.MouseDelta.x,
+                -io.MouseDelta.y
+            );
+        }
+    }
+
+    // ========================================================
+    // ZOOM - MOUSE WHEEL
+    // ========================================================
+
     if (sceneHovered && io.MouseWheel != 0.0f)
     {
         camera.ProcessMouseScroll(io.MouseWheel);
@@ -589,9 +679,23 @@ void Camera::ProcessMouseMovement(
 
 void Camera::ProcessMouseScroll(float yoffset)
 {
-    zoom -= yoffset;
+    if (orbitEnabled)
+    {
+        orbitDistance -= yoffset *
+            glm::max(orbitDistance * 0.1f, 0.5f);
 
-    zoom = glm::clamp(zoom, 1.0f, 90.0f);
+        orbitDistance = glm::clamp(
+            orbitDistance,
+            0.5f,
+            500.0f
+        );
+
+        UpdateOrbitPosition();
+    }
+    else
+    {
+        position += front * yoffset * movementSpeed * 0.2f;
+    }
 }
 
 void Camera::ProcessMousePan(
@@ -620,6 +724,57 @@ void Camera::UpdateCameraVectors()
     front = glm::normalize(newFront);
     right = glm::normalize(glm::cross(front, worldUp));
     up = glm::normalize(glm::cross(right, front));
+}
+
+void Camera::ProcessMouseOrbit(
+    float xoffset,
+    float yoffset
+)
+{
+    if (!orbitEnabled)
+        return;
+
+    xoffset *= mouseSensitivity;
+    yoffset *= mouseSensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    pitch = glm::clamp(pitch, -89.0f, 89.0f);
+
+    UpdateCameraVectors();
+
+    UpdateOrbitPosition();
+}
+
+void Camera::UpdateOrbitPosition()
+{
+    position = orbitTarget - front * orbitDistance;
+}
+
+void Camera::Focus(
+    const glm::vec3& target,
+    float distance
+)
+{
+    orbitTarget = target;
+    orbitDistance = glm::max(distance, 0.5f);
+
+    orbitEnabled = true;
+
+    UpdateOrbitPosition();
+
+    LOG(
+        "Camera focused on: (%.2f, %.2f, %.2f)",
+        target.x,
+        target.y,
+        target.z
+    );
+}
+
+void Camera::ClearOrbitTarget()
+{
+    orbitEnabled = false;
 }
 
 bool Editor::CleanUp()

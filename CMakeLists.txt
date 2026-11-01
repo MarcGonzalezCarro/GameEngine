@@ -23,6 +23,7 @@ Source/Scene/GameObject.cpp
 Source/Scene/Component.cpp
 Source/Components/Transform.cpp
 Source/Components/MeshRenderer.cpp
+Source/Components/TextureComponent.cpp
 
 Include/Engine.h
 Include/Input.h
@@ -37,6 +38,7 @@ Include/Scene/GameObject.h
 Include/Scene/Component.h
 Include/Components/Transform.h
 Include/Components/MeshRenderer.h
+Include/Components/TextureComponent.h
 )
 
 target_include_directories(HelloWorld PRIVATE
