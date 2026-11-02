@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+class Camera;
 
 // ============================================================
 // MESH GPU
@@ -128,6 +129,7 @@ public:
 
     std::vector<MeshGPU> modelMeshes;
 
+    void SetCamera(const Camera* camera);
 private:
 
     GLuint gridVAO = 0;
@@ -178,7 +180,9 @@ private:
 
     std::unordered_map<std::string, TextureOverride> textureOverrides;
 
-    
+    const Camera* sceneCamera = nullptr;
+
+    void DrawGrid(const Camera& camera);
     
     // ========================================================
     // NORMALS SHADER

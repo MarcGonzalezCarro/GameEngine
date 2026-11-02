@@ -3,6 +3,7 @@
 #include <memory>
 #include <list>
 #include "Module.h"
+#include "Camera.h"
 
 
 // Modules
@@ -87,6 +88,8 @@ public:
 	/*std::shared_ptr<Textures> textures;
 	std::shared_ptr<Audio> audio;
 	*/
+
+	Camera editorCamera;
 
 private:
 	float dt;

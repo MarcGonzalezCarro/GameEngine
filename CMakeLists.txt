@@ -17,6 +17,7 @@ Source/Log.cpp
 Source/Window.cpp
 Source/Render.cpp
 Source/Editor.cpp
+Source/Camera.cpp
 Source/ResourceManager.cpp
 Source/Scene/Scene.cpp
 Source/Scene/GameObject.cpp
@@ -32,6 +33,7 @@ Include/Module.h
 Include/Window.h
 Include/Render.h
 Include/Editor.h
+Include/Camera.h
 Include/ResourceManager.h
 Include/Scene/Scene.h
 Include/Scene/GameObject.h

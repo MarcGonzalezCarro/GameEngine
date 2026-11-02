@@ -96,6 +96,8 @@ Engine::Engine()
     AddModule(
         std::static_pointer_cast<Module>(editor)
     );
+
+    render->SetCamera(&editorCamera);
 }
 
 

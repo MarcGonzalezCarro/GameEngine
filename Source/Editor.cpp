@@ -510,6 +510,9 @@ bool Editor::Update(float dt)
 
     ImGuiIO& io = ImGui::GetIO();
 
+    // Cámara compartida del motor.
+    Camera& camera = Engine::GetInstance().editorCamera;
+
     const bool rightMouse =
         ImGui::IsMouseDown(ImGuiMouseButton_Right);
 
@@ -560,40 +563,27 @@ bool Editor::Update(float dt)
         sceneHovered &&
         rightMouse)
     {
-        // Salir del modo órbita al entrar en FPS.
         camera.ClearOrbitTarget();
 
         if (!io.WantTextInput)
         {
             if (ImGui::IsKeyDown(ImGuiKey_W))
-                camera.ProcessKeyboard(
-                    "FORWARD", dt, shiftPressed
-                );
+                camera.ProcessKeyboard("FORWARD", dt, shiftPressed);
 
             if (ImGui::IsKeyDown(ImGuiKey_S))
-                camera.ProcessKeyboard(
-                    "BACKWARD", dt, shiftPressed
-                );
+                camera.ProcessKeyboard("BACKWARD", dt, shiftPressed);
 
             if (ImGui::IsKeyDown(ImGuiKey_A))
-                camera.ProcessKeyboard(
-                    "LEFT", dt, shiftPressed
-                );
+                camera.ProcessKeyboard("LEFT", dt, shiftPressed);
 
             if (ImGui::IsKeyDown(ImGuiKey_D))
-                camera.ProcessKeyboard(
-                    "RIGHT", dt, shiftPressed
-                );
+                camera.ProcessKeyboard("RIGHT", dt, shiftPressed);
 
             if (ImGui::IsKeyDown(ImGuiKey_E))
-                camera.ProcessKeyboard(
-                    "UP", dt, shiftPressed
-                );
+                camera.ProcessKeyboard("UP", dt, shiftPressed);
 
             if (ImGui::IsKeyDown(ImGuiKey_Q))
-                camera.ProcessKeyboard(
-                    "DOWN", dt, shiftPressed
-                );
+                camera.ProcessKeyboard("DOWN", dt, shiftPressed);
         }
 
         // Rotación con el ratón.
@@ -616,7 +606,6 @@ bool Editor::Update(float dt)
         altPressed &&
         leftMouse)
     {
-        // Si todavía no tenemos objetivo, usar el seleccionado.
         if (!camera.IsOrbitEnabled() && selectedObject != nullptr)
         {
             Component* component =
@@ -1080,6 +1069,8 @@ void Editor::DrawConfiguration()
 
     auto& engine = Engine::GetInstance();
 
+    Camera& camera = engine.editorCamera;
+
     // ========================================================
     // PERFORMANCE
     // ========================================================
@@ -1298,8 +1289,8 @@ void Editor::DrawConfiguration()
     }
 
     // ========================================================
-// CAMERA SETTINGS
-// ========================================================
+    // CAMERA SETTINGS
+    // ========================================================
 
     if (ImGui::CollapsingHeader("Camera"))
     {

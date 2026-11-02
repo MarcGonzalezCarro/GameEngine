@@ -6,8 +6,6 @@
 #include "Log.h"
 #include "Engine.h"
 #include "Window.h"
-#include "Editor.h"
-
 
 #include "Scene/Scene.h"
 #include "Scene/GameObject.h"
@@ -1249,6 +1247,8 @@ bool Render::Update(float dt)
 // Called after each loop iteration
 bool Render::PostUpdate()
 {
+    if (sceneCamera == nullptr)
+        return true;
 
     BindSceneFramebuffer();
 
@@ -1256,16 +1256,17 @@ bool Render::PostUpdate()
     // CÁMARA
     // ========================================================
 
-    Camera& camera = Engine::GetInstance().editor->camera;
+    const glm::mat4 view =
+        sceneCamera->GetViewMatrix();
 
-    const glm::mat4 view = camera.GetViewMatrix();
-    const glm::mat4 projection = camera.GetProjectionMatrix();
+    const glm::mat4 projection =
+        sceneCamera->GetProjectionMatrix();
 
     // ========================================================
     // GRID
     // ========================================================
 
-    DrawGrid();
+    DrawGrid(*sceneCamera);
 
     // ========================================================
     // SHADER DEL MODELO
@@ -1698,20 +1699,24 @@ void Render::CreateGrid()
     glBindVertexArray(0);
 }
 
-void Render::DrawGrid()
+void Render::DrawGrid(const Camera& camera)
 {
     glUseProgram(gridShaderProgram);
 
-    Camera& camera = Engine::GetInstance().editor->camera;
+    const glm::mat4 view =
+        camera.GetViewMatrix();
 
-    glm::mat4 view = camera.GetViewMatrix();
-    glm::mat4 projection = camera.GetProjectionMatrix();
-    glm::mat4 model = glm::mat4(1.0f);
+    const glm::mat4 projection =
+        camera.GetProjectionMatrix();
 
-    glm::mat4 mvp = projection * view * model;
+    const glm::mat4 model =
+        glm::mat4(1.0f);
 
-    GLint mvpLoc = glGetUniformLocation(
-        gridShaderProgram, "mvp");
+    const glm::mat4 mvp =
+        projection * view * model;
+
+    const GLint mvpLoc =
+        glGetUniformLocation(gridShaderProgram, "mvp");
 
     glUniformMatrix4fv(
         mvpLoc,
@@ -1720,10 +1725,16 @@ void Render::DrawGrid()
         glm::value_ptr(mvp)
     );
 
-    GLint colorLoc = glGetUniformLocation(
-        gridShaderProgram, "gridColor");
+    const GLint colorLoc =
+        glGetUniformLocation(gridShaderProgram, "gridColor");
 
-    glUniform4f(colorLoc, 0.35f, 0.35f, 0.35f, 1.0f);
+    glUniform4f(
+        colorLoc,
+        0.35f,
+        0.35f,
+        0.35f,
+        1.0f
+    );
 
     glBindVertexArray(gridVAO);
 
@@ -1734,7 +1745,6 @@ void Render::DrawGrid()
     );
 
     glBindVertexArray(0);
-
 }
 
 void Render::CreateMeshObjects(
@@ -2193,6 +2203,10 @@ bool Render::GetOverrideTextureInfo(
     return true;
 }
 
+void Render::SetCamera(const Camera* camera)
+{
+    sceneCamera = camera;
+}
 //Framebuffers para el imgui
 //Utilizar stack/LIFO para gameObjects (DFS)
 //Memoria cache lifo, mirar
