@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 Transform::Transform(GameObject* owner)
     : Component(owner, ComponentType::Transform)
@@ -67,4 +68,23 @@ glm::mat4 Transform::GetWorldMatrix() const
     const auto* parentTransform = static_cast<const Transform*>(component);
 
     return parentTransform->GetWorldMatrix() * local;
+}
+
+void Transform::SetLocalMatrix(const glm::mat4& matrix)
+{
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::quat quaternion;
+
+    glm::decompose(
+        matrix,
+        scale,
+        quaternion,
+        position,
+        skew,
+        perspective
+    );
+
+    // Convertir el quaternion a Euler en grados.
+    rotation = glm::degrees(glm::eulerAngles(quaternion));
 }

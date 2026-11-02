@@ -19,6 +19,7 @@
 
 #include "ResourceManager.h"
 
+#include <cstdio>
 #include <cmath>
 #include <vector>
 #include <algorithm>
@@ -807,21 +808,21 @@ void Editor::DrawMainMenu()
             if (ImGui::MenuItem("Documentation"))
             {
                 SDL_OpenURL(
-                    "https://github.com/TU_REPOSITORIO/docs"
+                    "https://github.com/MarcGonzalezCarro/GameEngine"
                 );
             }
 
             if (ImGui::MenuItem("Report a Bug"))
             {
                 SDL_OpenURL(
-                    "https://github.com/TU_REPOSITORIO/issues"
+                    "https://github.com/MarcGonzalezCarro/GameEngine/issues"
                 );
             }
 
             if (ImGui::MenuItem("Download Latest"))
             {
                 SDL_OpenURL(
-                    "https://github.com/TU_REPOSITORIO/releases"
+                    "https://github.com/MarcGonzalezCarro/GameEngine/releases"
                 );
             }
 
@@ -898,6 +899,19 @@ void Editor::DrawHierarchy()
             if (object)
                 DrawHierarchyNode(*object);
         }
+
+        // Ejecutar el cambio de jerarquía después
+        // de terminar de recorrer el árbol.
+        if (pendingReparentObject != nullptr)
+        {
+            scene->ReparentGameObject(
+                pendingReparentObject,
+                pendingReparentParent
+            );
+
+            pendingReparentObject = nullptr;
+            pendingReparentParent = nullptr;
+        }
     }
 
     if (ImGui::Button("Create GameObject"))
@@ -916,6 +930,11 @@ void Editor::DrawHierarchy()
 
 void Editor::DrawHierarchyNode(GameObject& object)
 {
+    static GameObject* renamingObject = nullptr;
+    static char renameBuffer[256] = {};
+
+    static bool focusRename = false;
+
     const bool hasChildren =
         !object.GetChildren().empty();
 
@@ -929,15 +948,113 @@ void Editor::DrawHierarchyNode(GameObject& object)
     if (selectedObject == &object)
         flags |= ImGuiTreeNodeFlags_Selected;
 
+    const bool renaming = renamingObject == &object;
+
     const bool opened = ImGui::TreeNodeEx(
         static_cast<void*>(&object),
         flags,
         "%s",
-        object.GetName().c_str()
+        renaming ? "##Renaming" : object.GetName().c_str()
     );
+
+    // ========================================================
+    // RENAME
+    // ========================================================
 
     if (ImGui::IsItemClicked())
         selectedObject = &object;
+
+    if (!renaming &&
+        ImGui::IsItemHovered() &&
+        ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
+        renamingObject = &object;
+
+        std::snprintf(
+            renameBuffer,
+            sizeof(renameBuffer),
+            "%s",
+            object.GetName().c_str()
+        );
+    }
+
+    if (renaming)
+    {
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(150.0f);
+
+        if (focusRename)
+        {
+            ImGui::SetKeyboardFocusHere();
+            focusRename = false;
+        }
+
+        if (ImGui::InputText(
+            "##RenameInput",
+            renameBuffer,
+            sizeof(renameBuffer),
+            ImGuiInputTextFlags_EnterReturnsTrue |
+            ImGuiInputTextFlags_AutoSelectAll))
+        {
+            object.SetName(renameBuffer);
+            renamingObject = nullptr;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+        {
+            renamingObject = nullptr;
+        }
+    }
+
+    // ========================================================
+    // DRAG SOURCE
+    // ========================================================
+
+    if (ImGui::BeginDragDropSource())
+    {
+        GameObject* draggedObject = &object;
+
+        ImGui::SetDragDropPayload(
+            "GAMEOBJECT",
+            &draggedObject,
+            sizeof(GameObject*)
+        );
+
+        ImGui::Text(
+            "Move: %s",
+            object.GetName().c_str()
+        );
+
+        ImGui::EndDragDropSource();
+    }
+
+    // ========================================================
+    // DROP TARGET
+    // ========================================================
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload =
+            ImGui::AcceptDragDropPayload("GAMEOBJECT"))
+        {
+            GameObject* draggedObject =
+                *static_cast<GameObject**>(payload->Data);
+
+            if (draggedObject != nullptr &&
+                draggedObject != &object)
+            {
+                pendingReparentObject = draggedObject;
+                pendingReparentParent = &object;
+            }
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+
+    // ========================================================
+    // CHILDREN
+    // ========================================================
 
     if (opened)
     {
@@ -1030,6 +1147,216 @@ void Editor::DrawConfiguration()
         }
 
         ImGui::Separator();
+    }
+
+    // ========================================================
+    // RENDERING SETTINGS
+    // ========================================================
+
+    if (ImGui::CollapsingHeader(
+        "Rendering Settings",
+        ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Text("OpenGL State");
+
+        ImGui::Separator();
+
+        // DEPTH TEST
+        static bool depthTest = true;
+
+        if (ImGui::Checkbox("Depth Test", &depthTest))
+        {
+            if (depthTest)
+                glEnable(GL_DEPTH_TEST);
+            else
+                glDisable(GL_DEPTH_TEST);
+        }
+
+        // FACE CULLING
+        static bool faceCulling = true;
+
+        if (ImGui::Checkbox("Face Culling", &faceCulling))
+        {
+            if (faceCulling)
+                glEnable(GL_CULL_FACE);
+            else
+                glDisable(GL_CULL_FACE);
+        }
+
+        // CULL FACE MODE
+        static int cullMode = 0;
+
+        const char* cullModes[] =
+        {
+            "Back",
+            "Front",
+            "Front and Back"
+        };
+
+        if (ImGui::Combo(
+            "Cull Face Mode",
+            &cullMode,
+            cullModes,
+            IM_ARRAYSIZE(cullModes)))
+        {
+            const GLenum modes[] =
+            {
+                GL_BACK,
+                GL_FRONT,
+                GL_FRONT_AND_BACK
+            };
+
+            glCullFace(modes[cullMode]);
+        }
+
+        // FRONT FACE
+        static int frontFace = 0;
+
+        const char* frontModes[] =
+        {
+            "Counter Clockwise",
+            "Clockwise"
+        };
+
+        if (ImGui::Combo(
+            "Front Face",
+            &frontFace,
+            frontModes,
+            IM_ARRAYSIZE(frontModes)))
+        {
+            glFrontFace(frontFace == 0 ? GL_CCW : GL_CW);
+        }
+
+        ImGui::Separator();
+
+        // BLENDING
+        static bool blending = false;
+
+        if (ImGui::Checkbox("Blending", &blending))
+        {
+            if (blending)
+            {
+                glEnable(GL_BLEND);
+                glBlendFunc(
+                    GL_SRC_ALPHA,
+                    GL_ONE_MINUS_SRC_ALPHA
+                );
+            }
+            else
+            {
+                glDisable(GL_BLEND);
+            }
+        }
+
+        // MULTISAMPLING
+        static bool multisampling = true;
+
+        if (ImGui::Checkbox("Multisampling", &multisampling))
+        {
+            if (multisampling)
+                glEnable(GL_MULTISAMPLE);
+            else
+                glDisable(GL_MULTISAMPLE);
+        }
+
+        ImGui::Separator();
+
+        // WIREFRAME
+        static bool wireframe = false;
+
+        if (ImGui::Checkbox("Wireframe", &wireframe))
+        {
+            glPolygonMode(
+                GL_FRONT_AND_BACK,
+                wireframe ? GL_LINE : GL_FILL
+            );
+        }
+
+        // SCISSOR TEST
+        static bool scissorTest = false;
+
+        if (ImGui::Checkbox("Scissor Test", &scissorTest))
+        {
+            if (scissorTest)
+                glEnable(GL_SCISSOR_TEST);
+            else
+                glDisable(GL_SCISSOR_TEST);
+        }
+
+        // STENCIL TEST
+        static bool stencilTest = false;
+
+        if (ImGui::Checkbox("Stencil Test", &stencilTest))
+        {
+            if (stencilTest)
+                glEnable(GL_STENCIL_TEST);
+            else
+                glDisable(GL_STENCIL_TEST);
+        }
+
+        ImGui::Separator();
+    }
+
+    // ========================================================
+// CAMERA SETTINGS
+// ========================================================
+
+    if (ImGui::CollapsingHeader("Camera"))
+    {
+        ImGui::Text("Camera Movement");
+
+        ImGui::SliderFloat(
+            "Movement Speed",
+            &camera.movementSpeed,
+            1.0f,
+            30.0f
+        );
+
+        ImGui::SliderFloat(
+            "Fast Movement Multiplier",
+            &camera.fastMovementMultiplier,
+            1.0f,
+            10.0f
+        );
+
+        ImGui::SliderFloat(
+            "Mouse Sensitivity",
+            &camera.mouseSensitivity,
+            0.01f,
+            1.0f
+        );
+
+        ImGui::Separator();
+
+        ImGui::Text("Camera Projection");
+
+        ImGui::SliderFloat(
+            "Field of View",
+            &camera.zoom,
+            10.0f,
+            120.0f
+        );
+
+        ImGui::SliderFloat(
+            "Near Plane",
+            &camera.nearPlane,
+            0.01f,
+            10.0f
+        );
+
+        ImGui::SliderFloat(
+            "Far Plane",
+            &camera.farPlane,
+            10.0f,
+            5000.0f
+        );
+    }
+
+    static bool vsync = true;
+
+    if (ImGui::Checkbox("VSync", &vsync))
+    {
+        SDL_GL_SetSwapInterval(vsync ? 1 : 0);
     }
 
     // ========================================================
@@ -1132,7 +1459,7 @@ void Editor::DrawAbout()
 
     ImGui::SetWindowFontScale(1.5f);
 
-    ImGui::Text("MY ENGINE");
+    ImGui::Text("SUPER ENGINE");
 
     ImGui::SetWindowFontScale(1.0f);
 
@@ -1156,9 +1483,14 @@ void Editor::DrawAbout()
         "Development Team",
         ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::BulletText("Member 1 - GitHub");
-        ImGui::BulletText("Member 2 - GitHub");
-        ImGui::BulletText("Member 3 - GitHub");
+        if (ImGui::TextLink("Marc González - GitHub"))
+            SDL_OpenURL("https://github.com/MarcGonzalezCarro");
+
+        if (ImGui::TextLink("Irene Calatrava - GitHub"))
+            SDL_OpenURL("https://github.com/irentren");
+
+        if (ImGui::TextLink("Lluís Cazorla - GitHub"))
+            SDL_OpenURL("https://github.com/LluisCazorla");
     }
 
     // ========================================================
@@ -1227,6 +1559,41 @@ void Editor::DrawInspector()
         "GameObject: %s",
         selectedObject->GetName().c_str()
     );
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Duplicate"))
+    {
+        auto& engine = Engine::GetInstance();
+
+        if (engine.scene)
+        {
+            GameObject* duplicate =
+                engine.scene->DuplicateGameObject(selectedObject);
+
+            if (duplicate != nullptr)
+            {
+                selectedObject = duplicate;
+            }
+        }
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Delete"))
+    {
+        auto& engine = Engine::GetInstance();
+
+        if (engine.scene)
+        {
+            engine.scene->DeleteGameObject(selectedObject);
+
+            selectedObject = nullptr;
+        }
+
+        ImGui::End();
+        return;
+    }
 
     ImGui::Separator();
 
@@ -1335,15 +1702,7 @@ void Editor::DrawInspector()
         "Texture",
         ImGuiTreeNodeFlags_DefaultOpen))
     {
-        GLuint textureID = 0;
-
-        bool customTexture = false;
-
         auto& engine = Engine::GetInstance();
-
-        // ====================================================
-        // 1. TEXTURA OVERRIDE DEL MESH RENDERER
-        // ====================================================
 
         Component* rendererBase =
             selectedObject->GetComponent(
@@ -1355,82 +1714,135 @@ void Editor::DrawInspector()
             auto* meshRenderer =
                 static_cast<MeshRenderer*>(rendererBase);
 
-            if (meshRenderer->HasTextureOverride())
+            GLuint textureID = 0;
+
+            int width = 0;
+            int height = 0;
+
+            std::string path;
+            const char* source = "None";
+
+            // ========================================
+            // TEXTURA IMPORTADA
+            // ========================================
+
+            if (meshRenderer->HasMesh())
             {
-                textureID = engine.render->GetTexturePreview(
-                    meshRenderer->GetTexturePath()
-                );
-
-                customTexture = (textureID != 0);
-            }
-
-            // ====================================================
-            // 2. TEXTURA ORIGINAL DEL FBX
-            // ====================================================
-
-            if (textureID == 0 && meshRenderer->HasMesh())
-            {
-                const std::size_t index =
+                std::size_t index =
                     meshRenderer->GetMeshIndex();
+
+                const auto& meshes =
+                    engine.resourceManager->GetMeshes();
+
+                if (index < meshes.size())
+                {
+                    path = meshes[index].diffuseTexture;
+                }
 
                 if (index < engine.render->modelMeshes.size())
                 {
-                    textureID =
-                        engine.render->modelMeshes[index].textureID;
+                    const auto& gpuMesh =
+                        engine.render->modelMeshes[index];
+
+                    textureID = gpuMesh.textureID;
+                    width = gpuMesh.textureWidth;
+                    height = gpuMesh.textureHeight;
                 }
+
+                source = path.empty()
+                    ? "No imported texture"
+                    : "Imported mesh";
             }
-        }
 
-        // ====================================================
-        // 3. TEXTURE COMPONENT
-        // ====================================================
+            // ========================================
+            // TEXTURA PERSONALIZADA
+            // ========================================
 
-        if (textureID == 0)
-        {
-            Component* textureBase =
-                selectedObject->GetComponent(
-                    ComponentType::Texture
+            if (meshRenderer->HasTextureOverride())
+            {
+                path = meshRenderer->GetTexturePath();
+
+                textureID =
+                    engine.render->GetOrLoadOverrideTexture(path);
+
+                engine.render->GetOverrideTextureInfo(
+                    path,
+                    width,
+                    height
                 );
 
-            if (textureBase != nullptr)
-            {
-                auto* textureComponent =
-                    static_cast<TextureComponent*>(textureBase);
-
-                if (textureComponent->HasTexture())
-                {
-                    textureID = textureComponent->GetTextureID();
-                    customTexture = (textureID != 0);
-                }
+                source = "Custom texture";
             }
-        }
 
-        // ====================================================
-        // 4. MOSTRAR INFORMACIÓN
-        // ====================================================
+            // ========================================
+            // CHECKERBOARD
+            // ========================================
 
-        ImGui::Separator();
+            bool checkerboard =
+                meshRenderer->GetUseCheckerboard();
 
-        ImGui::TextUnformatted(
-            customTexture
-            ? "Source: Custom texture"
-            : "Source: Imported mesh"
-        );
+            if (ImGui::Checkbox(
+                "Use Checkerboard",
+                &checkerboard))
+            {
+                meshRenderer->SetUseCheckerboard(checkerboard);
+            }
 
-        if (textureID != 0)
-        {
-            ImGui::Image(
-                (ImTextureID)(intptr_t)textureID,
-                ImVec2(200.0f, 200.0f),
-                ImVec2(0.0f, 1.0f),
-                ImVec2(1.0f, 0.0f)
+            if (checkerboard)
+            {
+                textureID =
+                    engine.render->GetCheckerboardTexture();
+
+                path = "Generated Checkerboard";
+
+                width = 64;
+                height = 64;
+
+                source = "Checkerboard";
+            }
+
+            // ========================================
+            // INFORMACIÓN
+            // ========================================
+
+            ImGui::Separator();
+
+            ImGui::Text("Source: %s", source);
+
+            ImGui::TextWrapped(
+                "Path: %s",
+                path.empty() ? "None" : path.c_str()
             );
-        }
-        else
-        {
-            ImGui::TextUnformatted(
-                "No texture assigned"
+
+            ImGui::Text(
+                "Size: %d x %d",
+                width,
+                height
             );
+
+            // ========================================
+            // PREVIEW
+            // ========================================
+
+            ImGui::Separator();
+
+            if (textureID != 0)
+            {
+                ImGui::Text("Preview:");
+
+                ImGui::Image(
+                    (ImTextureID)(intptr_t)textureID,
+                    ImVec2(200.0f, 200.0f),
+                    ImVec2(0.0f, 1.0f),
+                    ImVec2(1.0f, 0.0f)
+                );
+            }
+            else
+            {
+                ImGui::TextUnformatted(
+                    "No texture available"
+                );
+            }
         }
     }
 

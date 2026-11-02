@@ -48,6 +48,19 @@ public:
     // Búsqueda de componentes
     Component* GetComponent(ComponentType type);
 
+    // Gestión de objetos
+    bool RemoveChild(GameObject* child);
+    
+    GameObject* Duplicate(GameObject* newParent = nullptr);
+
+    void CopyComponentsTo(GameObject& target);
+    void SetName(const std::string& newName);
+    // Gestión de jerarquía
+    std::unique_ptr<GameObject> DetachChild(GameObject* child);
+
+    bool AddChild(std::unique_ptr<GameObject> child);
+
+    bool IsDescendantOf(GameObject* object) const;
     // Activación
     void SetActive(bool active);
     bool IsActive() const;

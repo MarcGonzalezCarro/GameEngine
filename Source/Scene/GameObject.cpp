@@ -193,3 +193,180 @@ GameObject::GetComponents() const
 {
     return components;
 }
+
+// ============================================================
+// BORRAR HIJOS
+// ============================================================
+
+bool GameObject::RemoveChild(GameObject* child)
+{
+    if (child == nullptr)
+        return false;
+
+    auto it = std::find_if(
+        children.begin(),
+        children.end(),
+        [child](const std::unique_ptr<GameObject>& object)
+        {
+            return object.get() == child;
+        }
+    );
+
+    if (it == children.end())
+        return false;
+
+    children.erase(it);
+
+    return true;
+}
+
+// ============================================================
+// DUPLICAR GAMEOBJECTS
+// ============================================================
+GameObject* GameObject::Duplicate(GameObject* newParent)
+{
+    GameObject* destinationParent =
+        newParent ? newParent : parent;
+
+    // No podemos duplicar un objeto raíz desde GameObject.
+    if (destinationParent == nullptr)
+        return nullptr;
+
+    GameObject& duplicate =
+        destinationParent->CreateChild(name + " Copy");
+
+    // Copiar componentes
+    CopyComponentsTo(duplicate);
+
+    // Duplicar hijos recursivamente
+    for (const auto& child : children)
+    {
+        child->Duplicate(&duplicate);
+    }
+
+    return &duplicate;
+}
+
+void GameObject::CopyComponentsTo(GameObject& target)
+{
+    for (const auto& component : components)
+    {
+        switch (component->GetType())
+        {
+        case ComponentType::Transform:
+        {
+            auto* source =
+                static_cast<Transform*>(component.get());
+
+            auto* destination =
+                static_cast<Transform*>(
+                    target.GetComponent(ComponentType::Transform)
+                    );
+
+            if (destination != nullptr)
+            {
+                destination->SetPosition(source->GetPosition());
+                destination->SetRotation(source->GetRotation());
+                destination->SetScale(source->GetScale());
+            }
+
+            break;
+        }
+
+        case ComponentType::MeshRenderer:
+        {
+            auto* source =
+                static_cast<MeshRenderer*>(component.get());
+
+            auto& newComponent =
+                target.CreateComponent(ComponentType::MeshRenderer);
+
+            auto* destination =
+                static_cast<MeshRenderer*>(&newComponent);
+
+            destination->SetMeshIndex(source->GetMeshIndex());
+
+            break;
+        }
+
+        default:
+            break;
+        }
+    }
+}
+
+void GameObject::SetName(const std::string& newName)
+{
+    if (!newName.empty())
+    {
+        name = newName;
+    }
+}
+
+// ============================================================
+// DETACH CHILD
+// ============================================================
+
+std::unique_ptr<GameObject> GameObject::DetachChild(GameObject* child)
+{
+    if (child == nullptr)
+        return nullptr;
+
+    auto it = std::find_if(
+        children.begin(),
+        children.end(),
+        [child](const std::unique_ptr<GameObject>& object)
+        {
+            return object.get() == child;
+        }
+    );
+
+    if (it == children.end())
+        return nullptr;
+
+    std::unique_ptr<GameObject> detached = std::move(*it);
+
+    children.erase(it);
+
+    detached->parent = nullptr;
+
+    return detached;
+}
+
+// ============================================================
+// ADD CHILD
+// ============================================================
+
+bool GameObject::AddChild(std::unique_ptr<GameObject> child)
+{
+    if (!child || child.get() == this)
+        return false;
+
+    if (IsDescendantOf(child.get()))
+        return false;
+
+    child->parent = this;
+
+    children.push_back(std::move(child));
+
+    return true;
+}
+
+// ============================================================
+// IS DESCENDANT OF
+// ============================================================
+
+bool GameObject::IsDescendantOf(GameObject* object) const
+{
+    GameObject* current = parent;
+
+    while (current != nullptr)
+    {
+        if (current == object)
+            return true;
+
+        current = current->parent;
+    }
+
+    return false;
+}

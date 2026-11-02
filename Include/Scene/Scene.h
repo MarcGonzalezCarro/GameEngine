@@ -37,6 +37,14 @@ public:
     const std::vector<std::unique_ptr<GameObject>>&
         GetRootObjects() const;
 
+    bool DeleteGameObject(GameObject* object);
+
+    GameObject* DuplicateGameObject(GameObject* object);
+
+    bool ReparentGameObject(
+        GameObject* object,
+        GameObject* newParent
+    );
 private:
 
     // Objetos raíz de la escena

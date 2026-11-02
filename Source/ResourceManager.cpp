@@ -12,6 +12,9 @@
 #include <IL/ilu.h>
 #include <IL/ilut.h>
 #include <glm/ext/vector_float4.hpp>
+#include <filesystem>
+#include <cstdio>
+#include <cctype>
 
 // ============================================================
 // CONSTRUCTOR / DESTRUCTOR
@@ -406,27 +409,30 @@ bool ResourceManager::LoadModel(const char* file_path)
                     std::string texturePathString =
                         texturePath.C_Str();
 
+                    std::string resolvedTexture;
 
-                    // Si Assimp devuelve una ruta absoluta,
-                    // usamos esa ruta directamente.
-                    if (texturePathString.size() > 1 &&
-                        texturePathString[1] == ':')
+                    if (ResolveTexturePath(
+                        texturePathString,
+                        modelDirectory,
+                        resolvedTexture))
                     {
-                        mesh.diffuseTexture =
-                            texturePathString;
+                        mesh.diffuseTexture = resolvedTexture;
+
+                        LOG(
+                            "Mesh %d texture resolved: %s",
+                            i,
+                            mesh.diffuseTexture.c_str()
+                        );
                     }
                     else
                     {
-                        mesh.diffuseTexture =
-                            modelDirectory +
-                            texturePathString;
-                    }
+                        mesh.diffuseTexture.clear();
 
-                    LOG(
-                        "Mesh %d diffuse texture: %s",
-                        i,
-                        mesh.diffuseTexture.c_str()
-                    );
+                        LOG(
+                            "WARNING: Mesh %d has no valid texture",
+                            i
+                        );
+                    }
                 }
             }
         }
@@ -558,4 +564,109 @@ bool ResourceManager::CleanUp()
     ilShutDown();
 
     return true;
+}
+
+
+bool ResourceManager::ResolveTexturePath(
+    const std::string& originalPath,
+    const std::string& modelDirectory,
+    std::string& resolvedPath)
+{
+    if (originalPath.empty())
+        return false;
+
+    // Normalizar separadores.
+    std::string texturePath = originalPath;
+
+    for (char& c : texturePath)
+    {
+        if (c == '\\')
+            c = '/';
+    }
+
+    // Comprobar si es una ruta absoluta.
+    bool isAbsolute = false;
+
+    if (texturePath.size() >= 3 &&
+        std::isalpha(static_cast<unsigned char>(texturePath[0])) &&
+        texturePath[1] == ':' &&
+        texturePath[2] == '/')
+    {
+        isAbsolute = true;
+    }
+
+    if (texturePath.size() >= 2 &&
+        texturePath[0] == '/' &&
+        texturePath[1] == '/')
+    {
+        isAbsolute = true;
+    }
+
+    // Función para comprobar si existe un archivo.
+    auto FileExists = [](const std::string& path) -> bool
+        {
+            FILE* file = fopen(path.c_str(), "rb");
+
+            if (file)
+            {
+                fclose(file);
+                return true;
+            }
+
+            return false;
+        };
+
+    // 1. Intentar ruta absoluta original.
+    if (isAbsolute)
+    {
+        if (FileExists(texturePath))
+        {
+            resolvedPath = texturePath;
+            return true;
+        }
+    }
+    else
+    {
+        // 2. Intentar ruta relativa al FBX.
+        std::string relativePath =
+            modelDirectory + texturePath;
+
+        if (FileExists(relativePath))
+        {
+            resolvedPath = relativePath;
+            return true;
+        }
+    }
+
+    // 3. Extraer únicamente el nombre del archivo.
+    size_t lastSlash =
+        texturePath.find_last_of('/');
+
+    std::string filename =
+        (lastSlash != std::string::npos)
+        ? texturePath.substr(lastSlash + 1)
+        : texturePath;
+
+    // 4. Buscar directamente junto al FBX.
+    std::string fallbackPath =
+        modelDirectory + filename;
+
+    if (FileExists(fallbackPath))
+    {
+        resolvedPath = fallbackPath;
+
+        LOG(
+            "Texture resolved using filename: %s",
+            resolvedPath.c_str()
+        );
+
+        return true;
+    }
+
+    LOG(
+        "ERROR: Could not resolve texture: %s",
+        originalPath.c_str()
+    );
+
+    return false;
 }

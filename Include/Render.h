@@ -87,6 +87,20 @@ public:
 
     GLuint UploadTexture(const Texture& texture);
 
+    GLuint GetCheckerboardTexture() const
+    {
+        return checkerboardTexture;
+    }
+
+    bool GetOverrideTextureInfo(
+        const std::string& path,
+        int& width,
+        int& height
+    ) const;
+
+    // Obtiene una textura de la caché o la carga si hace falta.
+    GLuint GetOrLoadOverrideTexture(const std::string& path);
+
     // ========================================================
     // NORMAL VISUALIZATION
     // ========================================================
@@ -153,12 +167,18 @@ private:
     // TEXTURAS ASIGNADAS MANUALMENTE
     // ========================================================
 
-    // Relaciona cada ruta con su textura OpenGL.
-    // Evita cargar la misma imagen repetidamente.
-    std::unordered_map<std::string, GLuint> textureOverrides;
+    GLuint checkerboardTexture = 0;
 
-    // Obtiene una textura de la caché o la carga si hace falta.
-    GLuint GetOrLoadOverrideTexture(const std::string& path);
+    struct TextureOverride
+    {
+        GLuint textureID = 0;
+        int width = 0;
+        int height = 0;
+    };
+
+    std::unordered_map<std::string, TextureOverride> textureOverrides;
+
+    
     
     // ========================================================
     // NORMALS SHADER
@@ -173,5 +193,7 @@ private:
         const glm::mat4& model,
         bool faceNormals
     );
+
+    void CreateCheckerboardTexture();
     
 };

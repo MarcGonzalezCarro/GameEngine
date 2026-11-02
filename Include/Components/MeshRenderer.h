@@ -30,6 +30,16 @@ public:
     bool GetShowVertexNormals() const { return showVertexNormals; }
     void SetShowVertexNormals(bool value) { showVertexNormals = value; }
 
+    bool GetUseCheckerboard() const
+    {
+        return useCheckerboard;
+    }
+
+    void SetUseCheckerboard(bool value)
+    {
+        useCheckerboard = value;
+    }
+
 private:
     static constexpr std::size_t InvalidIndex =
         std::numeric_limits<std::size_t>::max();
@@ -41,4 +51,6 @@ private:
 
     bool showFaceNormals = false;
     bool showVertexNormals = false;
+
+    bool useCheckerboard = false;
 };

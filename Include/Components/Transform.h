@@ -23,6 +23,8 @@ public:
     glm::mat4 GetLocalMatrix() const;
     glm::mat4 GetWorldMatrix() const;
 
+    void SetLocalMatrix(const glm::mat4& matrix);
+
 private:
     glm::vec3 position{ 0.0f };
     glm::vec3 rotation{ 0.0f }; 

@@ -132,6 +132,8 @@ public:
 
     bool CleanUp() override;
 
+    bool ResolveTexturePath(const std::string& originalPath, const std::string& modelDirectory, std::string& resolvedPath);
+
 
     // --------------------------------------------------------
     // MODEL LOADING

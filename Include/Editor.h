@@ -176,6 +176,9 @@ private:
 
     GameObject* selectedObject = nullptr;
 
+    GameObject* pendingReparentObject = nullptr;
+    GameObject* pendingReparentParent = nullptr;
+
     std::vector<std::string> consoleLogs;
 
     bool showScene = true;
@@ -192,6 +195,19 @@ private:
 
     float fpsHistory[FPS_HISTORY_SIZE] = {};
     int fpsHistoryOffset = 0;
+
+    // Rendering configuration
+    bool vsyncEnabled = true;
+    bool depthTestEnabled = true;
+    bool cullFaceEnabled = true;
+    bool blendingEnabled = true;
+    bool multisamplingEnabled = true;
+    bool wireframeEnabled = false;
+    bool scissorTestEnabled = false;
+    bool stencilTestEnabled = false;
+
+    int cullFaceMode = 0;  // 0 = BACK, 1 = FRONT, 2 = FRONT_AND_BACK
+    int frontFaceMode = 0; // 0 = CCW, 1 = CW
 public:
     Camera camera;
 };

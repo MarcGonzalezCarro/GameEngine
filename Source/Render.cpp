@@ -19,6 +19,42 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#ifdef _DEBUG
+static void __stdcall OpenGLErrorFunction(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+    const char* tmp_source = "", * tmp_type = "", * tmp_severity = "";
+    switch (source) {
+    case GL_DEBUG_SOURCE_API: tmp_source = "API"; break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM: tmp_source = "Window System"; break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: tmp_source = "Shader Compiler"; break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY: tmp_source = "Third Party"; break;
+    case GL_DEBUG_SOURCE_APPLICATION: tmp_source = "Application"; break;
+    case GL_DEBUG_SOURCE_OTHER: tmp_source = "Other"; break;
+    };
+    switch (type) {
+    case GL_DEBUG_TYPE_ERROR: tmp_type = "Error"; break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: tmp_type = "Deprecated Behaviour"; break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: tmp_type = "Undefined Behaviour"; break;
+    case GL_DEBUG_TYPE_PORTABILITY: tmp_type = "Portability"; break;
+    case GL_DEBUG_TYPE_PERFORMANCE: tmp_type = "Performance"; break;
+    case GL_DEBUG_TYPE_MARKER: tmp_type = "Marker"; break;
+    case GL_DEBUG_TYPE_PUSH_GROUP: tmp_type = "Push Group"; break;
+    case GL_DEBUG_TYPE_POP_GROUP: tmp_type = "Pop Group"; break;
+    case GL_DEBUG_TYPE_OTHER: tmp_type = "Other"; break;
+    };
+    switch (severity) {
+    case GL_DEBUG_SEVERITY_HIGH: tmp_severity = "high"; break;
+    case GL_DEBUG_SEVERITY_MEDIUM: tmp_severity = "medium"; break;
+    case GL_DEBUG_SEVERITY_LOW: tmp_severity = "low"; break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION: tmp_severity = "notification"; break;
+    };
+    if (severity == GL_DEBUG_SEVERITY_HIGH || severity == GL_DEBUG_SEVERITY_MEDIUM)
+        LOG("<Source:%s> <Type:%s> <Severity:%s> <ID:%d> <Message:%s>\n", tmp_source, tmp_type, tmp_severity, id, message);
+}
+#endif // _DEBUG
+
+
+
 
 // ============================================================
 // CONSTANTES
@@ -74,6 +110,48 @@ bool Render::Awake()
 
     LOG("GLAD initialized successfully");
 
+    // ========================================================
+    // OPENGL DEBUG OUTPUT
+    // ========================================================
+
+#ifdef _DEBUG
+
+    if (GLAD_GL_VERSION_4_3)
+    {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+
+        glDebugMessageCallback(
+            OpenGLErrorFunction,
+            nullptr
+        );
+
+        glDebugMessageControl(
+            GL_DONT_CARE,
+            GL_DONT_CARE,
+            GL_DONT_CARE,
+            0,
+            nullptr,
+            GL_TRUE
+        );
+
+        glDebugMessageControl(
+            GL_DONT_CARE,
+            GL_DONT_CARE,
+            GL_DEBUG_SEVERITY_NOTIFICATION,
+            0,
+            nullptr,
+            GL_FALSE
+        );
+
+        LOG("OpenGL Debug Output enabled");
+    }
+    else
+    {
+        LOG("OpenGL Debug Output not supported");
+    }
+
+#endif
 
     // --------------------------------------------------------
     // Información de OpenGL
@@ -473,82 +551,8 @@ bool Render::Awake()
     }
 
     CreateGrid();
+    CreateCheckerboardTexture();
     
-    //// ========================================================
-    //// TEXTURA CHECKERS
-    //// ========================================================
-
-    //GLubyte checkerImage[CHECKERS_HEIGHT][CHECKERS_WIDTH][4];
-
-
-    //// --------------------------------------------------------
-    //// Generar patrón de checkers
-    //// --------------------------------------------------------
-
-    //for (int i = 0; i < CHECKERS_HEIGHT; i++)
-    //{
-    //    for (int j = 0; j < CHECKERS_WIDTH; j++)
-    //    {
-    //        int c = ((((i & 0x8) == 0) ^
-    //            ((j & 0x8) == 0))) * 255;
-
-    //        checkerImage[i][j][0] = (GLubyte)c;
-    //        checkerImage[i][j][1] = (GLubyte)c;
-    //        checkerImage[i][j][2] = (GLubyte)c;
-    //        checkerImage[i][j][3] = 255;
-    //    }
-    //}
-
-
-    //// --------------------------------------------------------
-    //// Configuración de lectura de píxeles
-    //// --------------------------------------------------------
-
-    //glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //Mirar
-
-
-    //// --------------------------------------------------------
-    //// Crear textura
-    //// --------------------------------------------------------
-
-    //glGenTextures(1, &textureID);
-    //glBindTexture(GL_TEXTURE_2D, textureID);
-
-
-    //// --------------------------------------------------------
-    //// Wrap
-    //// --------------------------------------------------------
-
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-
-    //// --------------------------------------------------------
-    //// Filtros
-    //// --------------------------------------------------------
-
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-
-    //// --------------------------------------------------------
-    //// Cargar imagen en textura
-    //// --------------------------------------------------------
-
-    //glTexImage2D(
-    //    GL_TEXTURE_2D,
-    //    0,
-    //    GL_RGBA,
-    //    CHECKERS_WIDTH,
-    //    CHECKERS_HEIGHT,
-    //    0,
-    //    GL_RGBA,
-    //    GL_UNSIGNED_BYTE,
-    //    checkerImage
-    //);
-
-    //glBindTexture(GL_TEXTURE_2D, 0);
-
     normalShaderProgram = CompileNormalShader();
 
     if (normalShaderProgram == 0)
@@ -703,6 +707,8 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
             texture))
         {
             gpuMesh.textureID = UploadTexture(texture);
+            gpuMesh.textureWidth = texture.width;
+            gpuMesh.textureHeight = texture.height;
 
             LOG(
                 "Original texture uploaded: %s, ID=%u",
@@ -718,8 +724,8 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
     }
 
     // ========================================================
-// GENERAR GEOMETRÍA DE NORMALES
-// ========================================================
+    // GENERAR GEOMETRÍA DE NORMALES
+    // ========================================================
 
     std::vector<float> faceNormalVertices;
     std::vector<float> vertexNormalVertices;
@@ -1081,21 +1087,13 @@ GLuint Render::GetOrLoadOverrideTexture(
     if (path.empty())
         return 0;
 
-    // --------------------------------------------------------
-    // 1. Comprobar si la textura ya está cargada
-    // --------------------------------------------------------
-
+    // 1. Comprobar caché
     auto it = textureOverrides.find(path);
 
     if (it != textureOverrides.end())
-    {
-        return it->second;
-    }
+        return it->second.textureID;
 
-    // --------------------------------------------------------
-    // 2. Cargar la imagen desde el disco
-    // --------------------------------------------------------
-
+    // 2. Cargar imagen
     auto& resourceManager =
         *Engine::GetInstance().resourceManager;
 
@@ -1103,38 +1101,33 @@ GLuint Render::GetOrLoadOverrideTexture(
 
     if (!resourceManager.LoadTexture(path.c_str(), texture))
     {
-        LOG(
-            "Failed to load texture override: %s",
+        LOG("Failed to load texture override: %s",
             path.c_str());
 
         return 0;
     }
 
-    // --------------------------------------------------------
-    // 3. Subir la textura a OpenGL
-    // --------------------------------------------------------
-
+    // 3. Subir a OpenGL
     GLuint textureID = UploadTexture(texture);
 
     if (textureID == 0)
-    {
-        LOG(
-            "Failed to upload texture override: %s",
-            path.c_str());
-
         return 0;
-    }
 
-    // --------------------------------------------------------
-    // 4. Guardarla en la caché
-    // --------------------------------------------------------
+    // 4. Guardar ID y dimensiones
+    TextureOverride overrideData;
 
-    textureOverrides.emplace(path, textureID);
+    overrideData.textureID = textureID;
+    overrideData.width = texture.width;
+    overrideData.height = texture.height;
+
+    textureOverrides.emplace(path, overrideData);
 
     LOG(
-        "Texture override loaded: %s (ID: %u)",
+        "Texture override loaded: %s (%d x %d)",
         path.c_str(),
-        textureID);
+        texture.width,
+        texture.height
+    );
 
     return textureID;
 }
@@ -1361,22 +1354,21 @@ bool Render::PostUpdate()
                         // MATERIAL: OVERRIDE MANUAL O TEXTURA ORIGINAL DEL FBX
                         // --------------------------------------------------------
 
-                        // Por defecto, utilizar la textura original del mesh.
                         GLuint textureID = gpuMesh.textureID;
 
-                        // Si existe un override manual, tiene prioridad.
                         if (meshRenderer->HasTextureOverride())
                         {
-                            const GLuint overrideID =
-                                GetOrLoadOverrideTexture(
-                                    meshRenderer->GetTexturePath());
+                            GLuint overrideID = GetOrLoadOverrideTexture(
+                                meshRenderer->GetTexturePath()
+                            );
 
-                            // Si la carga tiene éxito, utilizar el override.
-                            // Si falla, mantener la textura original del FBX.
                             if (overrideID != 0)
-                            {
                                 textureID = overrideID;
-                            }
+                        }
+
+                        if (meshRenderer->GetUseCheckerboard())
+                        {
+                            textureID = checkerboardTexture;
                         }
 
                         glUniform4fv(
@@ -1627,15 +1619,24 @@ bool Render::CleanUp()
     // Liberar texturas asignadas manualmente
     // --------------------------------------------------------
 
-    for (const auto& entry : textureOverrides)
+    if (checkerboardTexture != 0)
     {
-        const GLuint textureID = entry.second;
+        glDeleteTextures(1, &checkerboardTexture);
+        checkerboardTexture = 0;
+    }
 
-        if (textureID != 0)
+    for (auto& pair : textureOverrides)
+    {
+        if (pair.second.textureID != 0)
         {
-            glDeleteTextures(1, &textureID);
+            glDeleteTextures(
+                1,
+                &pair.second.textureID
+            );
         }
     }
+
+    textureOverrides.clear();
 
     textureOverrides.clear();
 
@@ -2125,6 +2126,71 @@ void Render::DrawNormals(
     glBindVertexArray(0);
 
     glUseProgram(previousProgram);
+}
+
+void Render::CreateCheckerboardTexture()
+{
+    const int size = 64;
+    const int cellSize = 8;
+
+    unsigned char pixels[size * size * 4];
+
+    for (int y = 0; y < size; ++y)
+    {
+        for (int x = 0; x < size; ++x)
+        {
+            const bool white = ((x / cellSize) + (y / cellSize)) % 2 == 0;
+
+            const unsigned char color = white ? 255 : 0;
+
+            const int index = (y * size + x) * 4;
+
+            pixels[index + 0] = color;
+            pixels[index + 1] = color;
+            pixels[index + 2] = color;
+            pixels[index + 3] = 255;
+        }
+    }
+
+    glGenTextures(1, &checkerboardTexture);
+    glBindTexture(GL_TEXTURE_2D, checkerboardTexture);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA8,
+        size,
+        size,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        pixels
+    );
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+bool Render::GetOverrideTextureInfo(
+    const std::string& path,
+    int& width,
+    int& height
+) const
+{
+    auto it = textureOverrides.find(path);
+
+    if (it == textureOverrides.end())
+        return false;
+
+    width = it->second.width;
+    height = it->second.height;
+
+    return true;
 }
 
 //Framebuffers para el imgui
