@@ -32,6 +32,16 @@ struct MeshGPU
     glm::vec4 diffuseColor = glm::vec4(1.0f);
 
     unsigned int num_indices = 0;
+
+    // Normales de las caras
+    GLuint faceNormalVAO = 0;
+    GLuint faceNormalVBO = 0;
+    GLsizei faceNormalVertexCount = 0;
+
+    // Normales de los vértices
+    GLuint vertexNormalVAO = 0;
+    GLuint vertexNormalVBO = 0;
+    GLsizei vertexNormalVertexCount = 0;
 };
 
 
@@ -76,6 +86,19 @@ public:
     void DeleteMesh(MeshGPU& mesh);
 
     GLuint UploadTexture(const Texture& texture);
+
+    // ========================================================
+    // NORMAL VISUALIZATION
+    // ========================================================
+
+    bool showFaceNormals = false;
+    bool showVertexNormals = false;
+
+    float normalLength = 0.5f;
+
+    glm::vec3 normalColor = glm::vec3(
+        0.0f, 1.0f, 0.0f
+    );
 
 
     // ========================================================
@@ -136,5 +159,19 @@ private:
 
     // Obtiene una textura de la caché o la carga si hace falta.
     GLuint GetOrLoadOverrideTexture(const std::string& path);
+    
+    // ========================================================
+    // NORMALS SHADER
+    // ========================================================
+
+    GLuint normalShaderProgram = 0;
+
+    GLuint CompileNormalShader();
+    void DrawNormals(
+        const MeshGPU& mesh,
+        const glm::mat4& viewProjection,
+        const glm::mat4& model,
+        bool faceNormals
+    );
     
 };

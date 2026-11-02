@@ -15,6 +15,7 @@
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_opengl3.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "ResourceManager.h"
 
@@ -960,15 +961,159 @@ void Editor::DrawConfiguration()
         &showConfiguration
     );
 
-    // Pendiente de implementar:
-    // - FPS
-    // - Renderer configuration
-    // - Window configuration
-    // - Input configuration
-    // - Texture configuration
-    // - Hardware information
-    // - Memory usage
-    // - SDL3 / OpenGL / DevIL versions
+    auto& engine = Engine::GetInstance();
+
+    // ========================================================
+    // PERFORMANCE
+    // ========================================================
+
+    if (ImGui::CollapsingHeader(
+        "Performance",
+        ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGuiIO& io = ImGui::GetIO();
+
+        float fps = io.Framerate;
+        float frameTime = fps > 0.0f
+            ? 1000.0f / fps
+            : 0.0f;
+
+        // Guardar FPS en el historial circular
+        fpsHistory[fpsHistoryOffset] = fps;
+
+        fpsHistoryOffset =
+            (fpsHistoryOffset + 1) % FPS_HISTORY_SIZE;
+
+        ImGui::Text("FPS: %.1f", fps);
+        ImGui::Text("Frame time: %.3f ms", frameTime);
+
+        ImGui::Spacing();
+
+        ImGui::PlotLines(
+            "FPS History",
+            fpsHistory,
+            FPS_HISTORY_SIZE,
+            fpsHistoryOffset,
+            nullptr,
+            0.0f,
+            120.0f,
+            ImVec2(0, 100)
+        );
+
+        ImGui::Spacing();
+        ImGui::Separator();
+    }
+
+    // ========================================================
+    // RENDERER
+    // ========================================================
+
+    if (ImGui::CollapsingHeader(
+        "Renderer",
+        ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (engine.render != nullptr)
+        {
+            Render& render = *engine.render;
+
+            ImGui::SliderFloat(
+                "Normal Length",
+                &render.normalLength,
+                0.01f,
+                5.0f
+            );
+
+            ImGui::ColorEdit3(
+                "Normal Color",
+                glm::value_ptr(render.normalColor)
+            );
+        }
+
+        ImGui::Separator();
+    }
+
+    // ========================================================
+    // WINDOW
+    // ========================================================
+
+    if (ImGui::CollapsingHeader("Window"))
+    {
+        if (engine.window != nullptr)
+        {
+            int width = 0;
+            int height = 0;
+
+            SDL_GetWindowSize(
+                engine.window->GetWindow(),
+                &width,
+                &height
+            );
+
+            ImGui::Text(
+                "Resolution: %d x %d",
+                width,
+                height
+            );
+
+            ImGui::Text(
+                "Scale: %.2f",
+                engine.window->GetScale()
+            );
+
+            SDL_WindowFlags flags =
+                SDL_GetWindowFlags(
+                    engine.window->GetWindow()
+                );
+
+            ImGui::Text(
+                "Fullscreen: %s",
+                (flags & SDL_WINDOW_FULLSCREEN)
+                ? "Yes"
+                : "No"
+            );
+        }
+
+        ImGui::Separator();
+    }
+
+    // ========================================================
+    // HARDWARE / OPENGL
+    // ========================================================
+
+    if (ImGui::CollapsingHeader("Hardware"))
+    {
+        ImGui::Text(
+            "Vendor: %s",
+            glGetString(GL_VENDOR)
+            ? reinterpret_cast<const char*>(
+                glGetString(GL_VENDOR))
+            : "Unknown"
+        );
+
+        ImGui::Text(
+            "GPU: %s",
+            glGetString(GL_RENDERER)
+            ? reinterpret_cast<const char*>(
+                glGetString(GL_RENDERER))
+            : "Unknown"
+        );
+
+        ImGui::Text(
+            "OpenGL: %s",
+            glGetString(GL_VERSION)
+            ? reinterpret_cast<const char*>(
+                glGetString(GL_VERSION))
+            : "Unknown"
+        );
+
+        ImGui::Text(
+            "GLSL: %s",
+            glGetString(GL_SHADING_LANGUAGE_VERSION)
+            ? reinterpret_cast<const char*>(
+                glGetString(GL_SHADING_LANGUAGE_VERSION))
+            : "Unknown"
+        );
+    }
 
     ImGui::End();
 }
@@ -1162,12 +1307,29 @@ void Editor::DrawInspector()
                 "Has mesh: %s",
                 meshRenderer->HasMesh() ? "Yes" : "No"
             );
+
+            ImGui::Separator();
+            ImGui::Text("Normals");
+
+            bool faceNormals = meshRenderer->GetShowFaceNormals();
+
+            if (ImGui::Checkbox("Face Normals", &faceNormals))
+            {
+                meshRenderer->SetShowFaceNormals(faceNormals);
+            }
+
+            bool vertexNormals = meshRenderer->GetShowVertexNormals();
+
+            if (ImGui::Checkbox("Vertex Normals", &vertexNormals))
+            {
+                meshRenderer->SetShowVertexNormals(vertexNormals);
+            }
         }
     }
 
     // ========================================================
- // TEXTURE
- // ========================================================
+    // TEXTURE
+    // ========================================================
 
     if (ImGui::CollapsingHeader(
         "Texture",

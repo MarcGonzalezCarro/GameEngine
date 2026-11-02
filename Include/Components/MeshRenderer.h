@@ -24,6 +24,12 @@ public:
     // Volver a la textura original del FBX.
     void ClearTextureOverride();
 
+    bool GetShowFaceNormals() const { return showFaceNormals; }
+    void SetShowFaceNormals(bool value) { showFaceNormals = value; }
+
+    bool GetShowVertexNormals() const { return showVertexNormals; }
+    void SetShowVertexNormals(bool value) { showVertexNormals = value; }
+
 private:
     static constexpr std::size_t InvalidIndex =
         std::numeric_limits<std::size_t>::max();
@@ -32,4 +38,7 @@ private:
 
     // Vacío = utilizar la textura original del mesh.
     std::string texturePath;
+
+    bool showFaceNormals = false;
+    bool showVertexNormals = false;
 };

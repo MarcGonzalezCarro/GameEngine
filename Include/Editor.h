@@ -62,7 +62,7 @@ public:
         return glm::lookAt(position, position + front, up);
     }
 
-    void Camera::ProcessKeyboard(
+    void ProcessKeyboard(
         const std::string& direction,
         float deltaTime,
         bool fast
@@ -188,6 +188,10 @@ private:
     bool showConfiguration = false;
     bool showAbout = false;
 
+    static constexpr int FPS_HISTORY_SIZE = 120;
+
+    float fpsHistory[FPS_HISTORY_SIZE] = {};
+    int fpsHistoryOffset = 0;
 public:
     Camera camera;
 };

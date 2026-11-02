@@ -549,6 +549,13 @@ bool Render::Awake()
 
     //glBindTexture(GL_TEXTURE_2D, 0);
 
+    normalShaderProgram = CompileNormalShader();
+
+    if (normalShaderProgram == 0)
+    {
+        LOG("Could not initialize normal shader");
+        return false;
+    }
 
     //// ========================================================
     //// FIN AWAKE
@@ -710,6 +717,194 @@ MeshGPU Render::UploadMesh(const Mesh& mesh)
         }
     }
 
+    // ========================================================
+// GENERAR GEOMETRÍA DE NORMALES
+// ========================================================
+
+    std::vector<float> faceNormalVertices;
+    std::vector<float> vertexNormalVertices;
+
+    std::vector<glm::vec3> accumulatedNormals(
+        mesh.num_vertices,
+        glm::vec3(0.0f)
+    );
+
+    auto AddNormalLine = [](
+        std::vector<float>& output,
+        const glm::vec3& origin,
+        const glm::vec3& direction)
+        {
+            // Inicio de la línea
+            output.insert(output.end(), {
+                origin.x, origin.y, origin.z,
+                direction.x, direction.y, direction.z,
+                0.0f
+                });
+
+            // Final de la línea
+            output.insert(output.end(), {
+                origin.x, origin.y, origin.z,
+                direction.x, direction.y, direction.z,
+                1.0f
+                });
+        };
+
+    for (GLuint i = 0; i + 2 < mesh.num_indices; i += 3)
+    {
+        GLuint i0 = mesh.indices[i];
+        GLuint i1 = mesh.indices[i + 1];
+        GLuint i2 = mesh.indices[i + 2];
+
+        if (i0 >= mesh.num_vertices ||
+            i1 >= mesh.num_vertices ||
+            i2 >= mesh.num_vertices)
+        {
+            continue;
+        }
+
+        glm::vec3 p0(
+            mesh.vertices[i0 * 5],
+            mesh.vertices[i0 * 5 + 1],
+            mesh.vertices[i0 * 5 + 2]
+        );
+
+        glm::vec3 p1(
+            mesh.vertices[i1 * 5],
+            mesh.vertices[i1 * 5 + 1],
+            mesh.vertices[i1 * 5 + 2]
+        );
+
+        glm::vec3 p2(
+            mesh.vertices[i2 * 5],
+            mesh.vertices[i2 * 5 + 1],
+            mesh.vertices[i2 * 5 + 2]
+        );
+
+        glm::vec3 faceNormal =
+            glm::cross(p1 - p0, p2 - p0);
+
+        float normalLengthSquared =
+            glm::dot(faceNormal, faceNormal);
+
+        // Ignorar triángulos degenerados
+        if (normalLengthSquared < 0.000001f)
+            continue;
+
+        glm::vec3 normalizedFaceNormal =
+            glm::normalize(faceNormal);
+
+        // Normal de cara: una por triángulo
+        glm::vec3 center = (p0 + p1 + p2) / 3.0f;
+
+        AddNormalLine(
+            faceNormalVertices,
+            center,
+            normalizedFaceNormal
+        );
+
+        // Acumular para calcular las normales de vértice
+        accumulatedNormals[i0] += faceNormal;
+        accumulatedNormals[i1] += faceNormal;
+        accumulatedNormals[i2] += faceNormal;
+    }
+
+    // ========================================================
+    // NORMALES DE VÉRTICE
+    // ========================================================
+
+    for (GLuint i = 0; i < mesh.num_vertices; ++i)
+    {
+        glm::vec3 normal = accumulatedNormals[i];
+
+        if (glm::dot(normal, normal) < 0.000001f)
+            continue;
+
+        normal = glm::normalize(normal);
+
+        glm::vec3 position(
+            mesh.vertices[i * 5],
+            mesh.vertices[i * 5 + 1],
+            mesh.vertices[i * 5 + 2]
+        );
+
+        AddNormalLine(
+            vertexNormalVertices,
+            position,
+            normal
+        );
+    }
+
+    // ========================================================
+    // CREAR VAO Y VBO DE LAS NORMALES
+    // ========================================================
+
+    auto CreateNormalBuffers = [](
+        const std::vector<float>& vertices,
+        GLuint& vao,
+        GLuint& vbo,
+        GLsizei& vertexCount)
+        {
+            if (vertices.empty())
+                return;
+
+            vertexCount = static_cast<GLsizei>(
+                vertices.size() / 7
+                );
+
+            glGenVertexArrays(1, &vao);
+            glGenBuffers(1, &vbo);
+
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+            glBufferData(
+                GL_ARRAY_BUFFER,
+                vertices.size() * sizeof(float),
+                vertices.data(),
+                GL_STATIC_DRAW
+            );
+
+            GLsizei stride = 7 * sizeof(float);
+
+            // Origen
+            glVertexAttribPointer(
+                0, 3, GL_FLOAT, GL_FALSE,
+                stride, (void*)0
+            );
+            glEnableVertexAttribArray(0);
+
+            // Dirección
+            glVertexAttribPointer(
+                1, 3, GL_FLOAT, GL_FALSE,
+                stride, (void*)(3 * sizeof(float))
+            );
+            glEnableVertexAttribArray(1);
+
+            // Extremo (0 o 1)
+            glVertexAttribPointer(
+                2, 1, GL_FLOAT, GL_FALSE,
+                stride, (void*)(6 * sizeof(float))
+            );
+            glEnableVertexAttribArray(2);
+
+            glBindVertexArray(0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        };
+
+    CreateNormalBuffers(
+        faceNormalVertices,
+        gpuMesh.faceNormalVAO,
+        gpuMesh.faceNormalVBO,
+        gpuMesh.faceNormalVertexCount
+    );
+
+    CreateNormalBuffers(
+        vertexNormalVertices,
+        gpuMesh.vertexNormalVAO,
+        gpuMesh.vertexNormalVBO,
+        gpuMesh.vertexNormalVertexCount
+    );
+
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -792,6 +987,34 @@ void Render::DeleteMesh(MeshGPU& mesh)
 
     mesh.num_indices = 0;
 
+    // Face normals
+    if (mesh.faceNormalVBO != 0)
+    {
+        glDeleteBuffers(1, &mesh.faceNormalVBO);
+        mesh.faceNormalVBO = 0;
+    }
+
+    if (mesh.faceNormalVAO != 0)
+    {
+        glDeleteVertexArrays(1, &mesh.faceNormalVAO);
+        mesh.faceNormalVAO = 0;
+    }
+
+    // Vertex normals
+    if (mesh.vertexNormalVBO != 0)
+    {
+        glDeleteBuffers(1, &mesh.vertexNormalVBO);
+        mesh.vertexNormalVBO = 0;
+    }
+
+    if (mesh.vertexNormalVAO != 0)
+    {
+        glDeleteVertexArrays(1, &mesh.vertexNormalVAO);
+        mesh.vertexNormalVAO = 0;
+    }
+
+    mesh.faceNormalVertexCount = 0;
+    mesh.vertexNormalVertexCount = 0;
 
 }
 
@@ -1171,6 +1394,26 @@ bool Render::PostUpdate()
                         glBindTexture(GL_TEXTURE_2D, textureID);
 
                         DrawMesh(gpuMesh);
+
+                        if (meshRenderer->GetShowFaceNormals())
+                        {
+                            DrawNormals(
+                                gpuMesh,
+                                projection * view,
+                                model,
+                                true
+                            );
+                        }
+
+                        if (meshRenderer->GetShowVertexNormals())
+                        {
+                            DrawNormals(
+                                gpuMesh,
+                                projection * view,
+                                model,
+                                false
+                            );
+                        }
                     }
                 }
 
@@ -1372,6 +1615,12 @@ bool Render::CleanUp()
     {
         glDeleteFramebuffers(1, &sceneFBO);
         sceneFBO = 0;
+    }
+
+    if (normalShaderProgram != 0)
+    {
+        glDeleteProgram(normalShaderProgram);
+        normalShaderProgram = 0;
     }
 
     // --------------------------------------------------------
@@ -1704,6 +1953,180 @@ void Render::UnbindSceneFramebuffer()
 
     glViewport(0, 0, width, height);
 }
+
+GLuint Render::CompileNormalShader()
+{
+    const char* vertexSource = R"(
+        #version 330 core
+
+        layout(location = 0) in vec3 aOrigin;
+        layout(location = 1) in vec3 aDirection;
+        layout(location = 2) in float aEndpoint;
+
+        uniform mat4 viewProjection;
+        uniform mat4 model;
+        uniform mat3 normalMatrix;
+        uniform float normalLength;
+
+        void main()
+        {
+            vec3 worldOrigin =
+                vec3(model * vec4(aOrigin, 1.0));
+
+            vec3 worldDirection =
+                normalize(normalMatrix * aDirection);
+
+            vec3 worldPosition =
+                worldOrigin +
+                worldDirection * aEndpoint * normalLength;
+
+            gl_Position =
+                viewProjection * vec4(worldPosition, 1.0);
+        }
+    )";
+
+    const char* fragmentSource = R"(
+        #version 330 core
+
+        out vec4 FragColor;
+
+        uniform vec3 normalColor;
+
+        void main()
+        {
+            FragColor = vec4(normalColor, 1.0);
+        }
+    )";
+
+    GLuint vertexShader =
+        CompileShader(GL_VERTEX_SHADER, vertexSource);
+
+    GLuint fragmentShader =
+        CompileShader(GL_FRAGMENT_SHADER, fragmentSource);
+
+    if (vertexShader == 0 || fragmentShader == 0)
+    {
+        if (vertexShader != 0)
+            glDeleteShader(vertexShader);
+
+        if (fragmentShader != 0)
+            glDeleteShader(fragmentShader);
+
+        LOG("Failed to compile normal shaders");
+        return 0;
+    }
+
+    GLuint program = glCreateProgram();
+
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+
+    glLinkProgram(program);
+
+    GLint success = GL_FALSE;
+
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    if (success == GL_FALSE)
+    {
+        LOG("Failed to link normal shader");
+
+        glDeleteProgram(program);
+        return 0;
+    }
+
+    return program;
+}
+
+void Render::DrawNormals(
+    const MeshGPU& mesh,
+    const glm::mat4& viewProjection,
+    const glm::mat4& model,
+    bool faceNormals)
+{
+    if (normalShaderProgram == 0)
+        return;
+
+    GLuint vao = faceNormals
+        ? mesh.faceNormalVAO
+        : mesh.vertexNormalVAO;
+
+    GLsizei count = faceNormals
+        ? mesh.faceNormalVertexCount
+        : mesh.vertexNormalVertexCount;
+
+    if (vao == 0 || count == 0)
+        return;
+
+    GLint previousProgram = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &previousProgram);
+
+    glUseProgram(normalShaderProgram);
+
+    GLint vpLocation = glGetUniformLocation(
+        normalShaderProgram, "viewProjection"
+    );
+
+    GLint modelLocation = glGetUniformLocation(
+        normalShaderProgram, "model"
+    );
+
+    GLint normalMatrixLocation = glGetUniformLocation(
+        normalShaderProgram, "normalMatrix"
+    );
+
+    GLint lengthLocation = glGetUniformLocation(
+        normalShaderProgram, "normalLength"
+    );
+
+    GLint colorLocation = glGetUniformLocation(
+        normalShaderProgram, "normalColor"
+    );
+
+    glm::mat3 normalMatrix = glm::transpose(
+        glm::inverse(glm::mat3(model))
+    );
+
+    glUniformMatrix4fv(
+        vpLocation, 1, GL_FALSE,
+        glm::value_ptr(viewProjection)
+    );
+
+    glUniformMatrix4fv(
+        modelLocation, 1, GL_FALSE,
+        glm::value_ptr(model)
+    );
+
+    glUniformMatrix3fv(
+        normalMatrixLocation, 1, GL_FALSE,
+        glm::value_ptr(normalMatrix)
+    );
+
+    glUniform1f(lengthLocation, normalLength);
+
+    glUniform3fv(
+        colorLocation, 1,
+        glm::value_ptr(normalColor)
+    );
+
+    glLineWidth(2.0f);
+
+    glBindVertexArray(vao);
+
+    glDrawArrays(
+        GL_LINES,
+        0,
+        count
+    );
+
+    glBindVertexArray(0);
+
+    glUseProgram(previousProgram);
+}
+
 //Framebuffers para el imgui
 //Utilizar stack/LIFO para gameObjects (DFS)
 //Memoria cache lifo, mirar
