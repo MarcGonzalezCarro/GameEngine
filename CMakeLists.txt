@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(HelloWorld CXX)
+project(SuperEngine CXX)
 
 find_package(SDL3 CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
@@ -9,7 +9,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(DevIL REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
-add_executable(HelloWorld 
+add_executable(SuperEngine 
 Source/Main.cpp 
 Source/Engine.cpp 
 Source/Input.cpp 
@@ -43,11 +43,11 @@ Include/Components/MeshRenderer.h
 Include/Components/TextureComponent.h
 )
 
-target_include_directories(HelloWorld PRIVATE
+target_include_directories(SuperEngine PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Include
 )
 
-target_link_libraries(HelloWorld PRIVATE
+target_link_libraries(SuperEngine PRIVATE
     SDL3::SDL3
     glad::glad
     imgui::imgui
@@ -57,8 +57,8 @@ target_link_libraries(HelloWorld PRIVATE
     assimp::assimp
 )
 
-add_custom_command(TARGET HelloWorld POST_BUILD
+add_custom_command(TARGET SuperEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/Assets
-    $<TARGET_FILE_DIR:HelloWorld>/Assets
+    $<TARGET_FILE_DIR:SuperEngine>/Assets
 )
