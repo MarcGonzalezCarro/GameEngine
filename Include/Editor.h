@@ -172,6 +172,8 @@ private:
     void DrawAbout();
     bool imguiInitialized = false;
 
+    void CreatePrimitive(const std::string& primitiveName);
+
     GameObject* selectedObject = nullptr;
 
     std::vector<std::string> consoleLogs;

@@ -77,6 +77,10 @@ bool Scene::Update(float dt)
 void Scene::Clear()
 {
     rootObjects.clear();
+
+    rootObjects.push_back(
+        std::make_unique<GameObject>("Scene")
+    );
 }
 
 // ============================================================

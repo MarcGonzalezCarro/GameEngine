@@ -16,6 +16,417 @@
 #include <imgui_impl_opengl3.h>
 #include <glm/glm.hpp>
 
+#include "ResourceManager.h"
+
+#include <cmath>
+#include <vector>
+#include <algorithm>
+
+namespace
+{
+    constexpr float PI = 3.14159265359f;
+
+    // ============================================================
+    // CREAR MESH A PARTIR DE VECTORES
+    // ============================================================
+
+    Mesh BuildMesh(
+        const std::vector<float>& vertices,
+        const std::vector<GLuint>& indices)
+    {
+        Mesh mesh;
+
+        mesh.num_vertices =
+            static_cast<GLuint>(vertices.size() / 5);
+
+        mesh.num_indices =
+            static_cast<GLuint>(indices.size());
+
+        mesh.vertices = new float[vertices.size()];
+        mesh.indices = new GLuint[indices.size()];
+
+        std::copy(
+            vertices.begin(),
+            vertices.end(),
+            mesh.vertices
+        );
+
+        std::copy(
+            indices.begin(),
+            indices.end(),
+            mesh.indices
+        );
+
+        mesh.diffuseColor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
+
+        return mesh;
+    }
+
+
+    // ============================================================
+    // AÑADIR VÉRTICE
+    // ============================================================
+
+    void AddVertex(
+        std::vector<float>& vertices,
+        float x,
+        float y,
+        float z,
+        float u,
+        float v)
+    {
+        vertices.push_back(x);
+        vertices.push_back(y);
+        vertices.push_back(z);
+        vertices.push_back(u);
+        vertices.push_back(v);
+    }
+
+
+    // ============================================================
+    // CUBE
+    // Tamaño: 1 x 1 x 1
+    // ============================================================
+
+    Mesh CreateCubeMesh()
+    {
+        std::vector<float> vertices;
+        std::vector<GLuint> indices;
+
+        const float h = 0.5f;
+
+        struct Face
+        {
+            glm::vec3 p0;
+            glm::vec3 p1;
+            glm::vec3 p2;
+            glm::vec3 p3;
+        };
+
+        const Face faces[] =
+        {
+            // Front (+Z)
+            {
+                {-h, -h, h},
+                { h, -h, h},
+                { h,  h, h},
+                {-h,  h, h}
+            },
+
+            // Back (-Z)
+            {
+                { h, -h, -h},
+                {-h, -h, -h},
+                {-h,  h, -h},
+                { h,  h, -h}
+            },
+
+            // Right (+X)
+            {
+                {h, -h,  h},
+                {h, -h, -h},
+                {h,  h, -h},
+                {h,  h,  h}
+            },
+
+            // Left (-X)
+            {
+                {-h, -h, -h},
+                {-h, -h,  h},
+                {-h,  h,  h},
+                {-h,  h, -h}
+            },
+
+            // Top (+Y)
+            {
+                {-h, h,  h},
+                { h, h,  h},
+                { h, h, -h},
+                {-h, h, -h}
+            },
+
+            // Bottom (-Y)
+            {
+                {-h, -h, -h},
+                { h, -h, -h},
+                { h, -h,  h},
+                {-h, -h,  h}
+            }
+        };
+
+        for (GLuint face = 0; face < 6; ++face)
+        {
+            const GLuint base = face * 4;
+
+            const Face& f = faces[face];
+
+            AddVertex(vertices, f.p0.x, f.p0.y, f.p0.z, 0.0f, 0.0f);
+            AddVertex(vertices, f.p1.x, f.p1.y, f.p1.z, 1.0f, 0.0f);
+            AddVertex(vertices, f.p2.x, f.p2.y, f.p2.z, 1.0f, 1.0f);
+            AddVertex(vertices, f.p3.x, f.p3.y, f.p3.z, 0.0f, 1.0f);
+
+            indices.insert(indices.end(),
+                {
+                    base, base + 1, base + 2,
+                    base, base + 2, base + 3
+                });
+        }
+
+        return BuildMesh(vertices, indices);
+    }
+
+
+    // ============================================================
+    // PLANE
+    // Tamaño: 1 x 1
+    // Situado en Y = 0
+    // ============================================================
+
+    Mesh CreatePlaneMesh()
+    {
+        std::vector<float> vertices =
+        {
+            // Position          // UV
+
+            -0.5f, 0.0f, -0.5f, 0.0f, 0.0f,
+            -0.5f, 0.0f,  0.5f, 0.0f, 1.0f,
+             0.5f, 0.0f,  0.5f, 1.0f, 1.0f,
+             0.5f, 0.0f, -0.5f, 1.0f, 0.0f
+        };
+
+        std::vector<GLuint> indices =
+        {
+            0, 1, 2,
+            0, 2, 3
+        };
+
+        return BuildMesh(vertices, indices);
+    }
+
+
+    // ============================================================
+    // SPHERE
+    // Diámetro: 1
+    // ============================================================
+
+    Mesh CreateSphereMesh()
+    {
+        std::vector<float> vertices;
+        std::vector<GLuint> indices;
+
+        constexpr GLuint sectors = 32;
+        constexpr GLuint stacks = 16;
+
+        const float radius = 0.5f;
+
+        for (GLuint i = 0; i <= stacks; ++i)
+        {
+            const float phi =
+                PI * static_cast<float>(i) /
+                static_cast<float>(stacks);
+
+            for (GLuint j = 0; j <= sectors; ++j)
+            {
+                const float theta =
+                    2.0f * PI * static_cast<float>(j) /
+                    static_cast<float>(sectors);
+
+                const float x =
+                    radius * sin(phi) * cos(theta);
+
+                const float y =
+                    radius * cos(phi);
+
+                const float z =
+                    radius * sin(phi) * sin(theta);
+
+                const float u =
+                    static_cast<float>(j) / sectors;
+
+                const float v =
+                    1.0f - static_cast<float>(i) / stacks;
+
+                AddVertex(vertices, x, y, z, u, v);
+            }
+        }
+
+        for (GLuint i = 0; i < stacks; ++i)
+        {
+            for (GLuint j = 0; j < sectors; ++j)
+            {
+                const GLuint a =
+                    i * (sectors + 1) + j;
+
+                const GLuint b =
+                    (i + 1) * (sectors + 1) + j;
+
+                const GLuint c = a + 1;
+                const GLuint d = b + 1;
+
+                indices.insert(indices.end(),
+                    {
+                        a, c, b,
+                        c, d, b
+                    });
+            }
+        }
+
+        return BuildMesh(vertices, indices);
+    }
+
+
+    // ============================================================
+    // CYLINDER
+    // Diámetro: 1
+    // Altura: 1
+    // Eje: Y
+    // ============================================================
+
+    Mesh CreateCylinderMesh()
+    {
+        std::vector<float> vertices;
+        std::vector<GLuint> indices;
+
+        constexpr GLuint sectors = 32;
+
+        const float radius = 0.5f;
+        const float halfHeight = 0.5f;
+
+        // --------------------------------------------------------
+        // LATERAL
+        // --------------------------------------------------------
+
+        for (GLuint i = 0; i <= sectors; ++i)
+        {
+            const float angle =
+                2.0f * PI * static_cast<float>(i) /
+                static_cast<float>(sectors);
+
+            const float x = radius * cos(angle);
+            const float z = radius * sin(angle);
+
+            const float u =
+                static_cast<float>(i) / sectors;
+
+            // Bottom
+            AddVertex(
+                vertices,
+                x, -halfHeight, z,
+                u, 0.0f
+            );
+
+            // Top
+            AddVertex(
+                vertices,
+                x, halfHeight, z,
+                u, 1.0f
+            );
+        }
+
+        for (GLuint i = 0; i < sectors; ++i)
+        {
+            const GLuint base = i * 2;
+
+            const GLuint bottom = base;
+            const GLuint top = base + 1;
+
+            const GLuint nextBottom = base + 2;
+            const GLuint nextTop = base + 3;
+
+            indices.insert(indices.end(),
+                {
+                    bottom, top, nextTop,
+                    bottom, nextTop, nextBottom
+                });
+        }
+
+        // --------------------------------------------------------
+        // TAPAS
+        // --------------------------------------------------------
+
+        const GLuint bottomCenter =
+            static_cast<GLuint>(vertices.size() / 5);
+
+        AddVertex(
+            vertices,
+            0.0f, -halfHeight, 0.0f,
+            0.5f, 0.5f
+        );
+
+        const GLuint topCenter =
+            static_cast<GLuint>(vertices.size() / 5);
+
+        AddVertex(
+            vertices,
+            0.0f, halfHeight, 0.0f,
+            0.5f, 0.5f
+        );
+
+        const GLuint bottomRing =
+            static_cast<GLuint>(vertices.size() / 5);
+
+        // Bottom ring
+        for (GLuint i = 0; i <= sectors; ++i)
+        {
+            const float angle =
+                2.0f * PI * static_cast<float>(i) /
+                static_cast<float>(sectors);
+
+            const float x = radius * cos(angle);
+            const float z = radius * sin(angle);
+
+            AddVertex(
+                vertices,
+                x, -halfHeight, z,
+                0.5f + 0.5f * cos(angle),
+                0.5f + 0.5f * sin(angle)
+            );
+        }
+
+        const GLuint topRing =
+            static_cast<GLuint>(vertices.size() / 5);
+
+        // Top ring
+        for (GLuint i = 0; i <= sectors; ++i)
+        {
+            const float angle =
+                2.0f * PI * static_cast<float>(i) /
+                static_cast<float>(sectors);
+
+            const float x = radius * cos(angle);
+            const float z = radius * sin(angle);
+
+            AddVertex(
+                vertices,
+                x, halfHeight, z,
+                0.5f + 0.5f * cos(angle),
+                0.5f + 0.5f * sin(angle)
+            );
+        }
+
+        for (GLuint i = 0; i < sectors; ++i)
+        {
+            // Bottom cap: outward normal -Y
+            indices.insert(indices.end(),
+                {
+                    bottomCenter,
+                    bottomRing + i,
+                    bottomRing + i + 1
+                });
+
+            // Top cap: outward normal +Y
+            indices.insert(indices.end(),
+                {
+                    topCenter,
+                    topRing + i + 1,
+                    topRing + i
+                });
+        }
+
+        return BuildMesh(vertices, indices);
+    }
+}
+
 Editor::Editor() : Module()
 {
     name = "editor";
@@ -363,10 +774,25 @@ void Editor::DrawMainMenu()
 
         if (ImGui::BeginMenu("Geometry"))
         {
-            ImGui::MenuItem("Cube", nullptr, false, false);
-            ImGui::MenuItem("Sphere", nullptr, false, false);
-            ImGui::MenuItem("Plane", nullptr, false, false);
-            ImGui::MenuItem("Cylinder", nullptr, false, false);
+            if (ImGui::MenuItem("Cube"))
+            {
+                CreatePrimitive("Cube");
+            }
+
+            if (ImGui::MenuItem("Sphere"))
+            {
+                CreatePrimitive("Sphere");
+            }
+
+            if (ImGui::MenuItem("Plane"))
+            {
+                CreatePrimitive("Plane");
+            }
+
+            if (ImGui::MenuItem("Cylinder"))
+            {
+                CreatePrimitive("Cylinder");
+            }
 
             ImGui::EndMenu();
         }
@@ -864,6 +1290,96 @@ void Editor::AddConsoleLog(const std::string& message)
 GameObject* Editor::GetSelectedObject() const
 {
     return selectedObject;
+}
+
+void Editor::CreatePrimitive(const std::string& primitiveName)
+{
+    auto& engine = Engine::GetInstance();
+
+    if (!engine.scene || !engine.render)
+    {
+        LOG("Cannot create primitive: Scene or Render is null");
+        return;
+    }
+
+    // ========================================================
+    // GENERAR GEOMETRÍA CPU
+    // ========================================================
+
+    Mesh mesh;
+
+    if (primitiveName == "Cube")
+    {
+        mesh = CreateCubeMesh();
+    }
+    else if (primitiveName == "Sphere")
+    {
+        mesh = CreateSphereMesh();
+    }
+    else if (primitiveName == "Plane")
+    {
+        mesh = CreatePlaneMesh();
+    }
+    else if (primitiveName == "Cylinder")
+    {
+        mesh = CreateCylinderMesh();
+    }
+    else
+    {
+        LOG("Unknown primitive: %s", primitiveName.c_str());
+        return;
+    }
+
+    // ========================================================
+    // SUBIR MALLA A GPU
+    // ========================================================
+
+    const std::size_t meshIndex =
+        engine.render->modelMeshes.size();
+
+    MeshGPU gpuMesh =
+        engine.render->UploadMesh(mesh);
+
+    engine.render->modelMeshes.push_back(gpuMesh);
+
+    // ========================================================
+    // CREAR GAME OBJECT
+    // ========================================================
+
+    GameObject& object =
+        engine.scene->CreateGameObject(primitiveName);
+
+    // ========================================================
+    // AÑADIR MESH RENDERER
+    // ========================================================
+
+    Component& component =
+        object.CreateComponent(ComponentType::MeshRenderer);
+
+    auto* meshRenderer =
+        static_cast<MeshRenderer*>(&component);
+
+    meshRenderer->SetMeshIndex(meshIndex);
+
+    // ========================================================
+    // SELECCIONAR OBJETO
+    // ========================================================
+
+    selectedObject = &object;
+
+    // ========================================================
+    // LOG
+    // ========================================================
+
+    LOG(
+        "Primitive created: %s | Mesh index: %zu",
+        primitiveName.c_str(),
+        meshIndex
+    );
+
+    AddConsoleLog(
+        "Created primitive: " + primitiveName
+    );
 }
 
 void Camera::ProcessMouseMovement(
