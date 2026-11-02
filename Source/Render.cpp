@@ -1682,6 +1682,11 @@ void Render::BindSceneFramebuffer()
     );
 }
 
+GLuint Render::GetTexturePreview(const std::string& path)
+{
+    return GetOrLoadOverrideTexture(path);
+}
+
 void Render::UnbindSceneFramebuffer()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

@@ -63,6 +63,8 @@ public:
     }
 
     void SetSceneViewportSize(int width, int height);
+
+    GLuint GetTexturePreview(const std::string& path);
     // ========================================================
     // MESH
     // ========================================================

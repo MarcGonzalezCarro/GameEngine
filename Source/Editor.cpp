@@ -1166,66 +1166,94 @@ void Editor::DrawInspector()
     }
 
     // ========================================================
-   // TEXTURE
-   // ========================================================
+ // TEXTURE
+ // ========================================================
 
     if (ImGui::CollapsingHeader(
         "Texture",
         ImGuiTreeNodeFlags_DefaultOpen))
     {
         GLuint textureID = 0;
+
         bool customTexture = false;
 
-        // 1. Textura asignada manualmente.
-        Component* textureBase =
+        auto& engine = Engine::GetInstance();
+
+        // ====================================================
+        // 1. TEXTURA OVERRIDE DEL MESH RENDERER
+        // ====================================================
+
+        Component* rendererBase =
             selectedObject->GetComponent(
-                ComponentType::Texture);
+                ComponentType::MeshRenderer
+            );
 
-        if (textureBase != nullptr)
+        if (rendererBase != nullptr)
         {
-            auto* textureComponent =
-                static_cast<TextureComponent*>(textureBase);
+            auto* meshRenderer =
+                static_cast<MeshRenderer*>(rendererBase);
 
-            if (textureComponent->HasTexture())
+            if (meshRenderer->HasTextureOverride())
             {
-                textureID = textureComponent->GetTextureID();
+                textureID = engine.render->GetTexturePreview(
+                    meshRenderer->GetTexturePath()
+                );
+
                 customTexture = (textureID != 0);
             }
-        }
 
-        // 2. Si no hay textura personalizada, usar la del FBX.
-        if (textureID == 0)
-        {
-            Component* rendererBase =
-                selectedObject->GetComponent(
-                    ComponentType::MeshRenderer);
+            // ====================================================
+            // 2. TEXTURA ORIGINAL DEL FBX
+            // ====================================================
 
-            if (rendererBase != nullptr)
+            if (textureID == 0 && meshRenderer->HasMesh())
             {
-                auto* meshRenderer =
-                    static_cast<MeshRenderer*>(rendererBase);
-
                 const std::size_t index =
                     meshRenderer->GetMeshIndex();
 
-                auto& render =
-                    *Engine::GetInstance().render;
-
-                if (meshRenderer->HasMesh() &&
-                    index < render.modelMeshes.size())
+                if (index < engine.render->modelMeshes.size())
                 {
                     textureID =
-                        render.modelMeshes[index].textureID;
+                        engine.render->modelMeshes[index].textureID;
                 }
             }
         }
+
+        // ====================================================
+        // 3. TEXTURE COMPONENT
+        // ====================================================
+
+        if (textureID == 0)
+        {
+            Component* textureBase =
+                selectedObject->GetComponent(
+                    ComponentType::Texture
+                );
+
+            if (textureBase != nullptr)
+            {
+                auto* textureComponent =
+                    static_cast<TextureComponent*>(textureBase);
+
+                if (textureComponent->HasTexture())
+                {
+                    textureID = textureComponent->GetTextureID();
+                    customTexture = (textureID != 0);
+                }
+            }
+        }
+
+        // ====================================================
+        // 4. MOSTRAR INFORMACIÓN
+        // ====================================================
 
         ImGui::Separator();
 
         ImGui::TextUnformatted(
             customTexture
             ? "Source: Custom texture"
-            : "Source: Imported mesh");
+            : "Source: Imported mesh"
+        );
 
         if (textureID != 0)
         {
@@ -1239,7 +1267,8 @@ void Editor::DrawInspector()
         else
         {
             ImGui::TextUnformatted(
-                "No texture assigned");
+                "No texture assigned"
+            );
         }
     }
 
