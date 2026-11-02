@@ -168,6 +168,8 @@ private:
     void DrawSceneWindow();
     void DrawMainMenu();
     void DrawDockspace();
+    void DrawConfiguration();
+    void DrawAbout();
     bool imguiInitialized = false;
 
     GameObject* selectedObject = nullptr;
@@ -180,6 +182,9 @@ private:
     bool showConsole = true;
     bool sceneHovered = false;
     bool sceneFocused = false;
+
+    bool showConfiguration = false;
+    bool showAbout = false;
 
 public:
     Camera camera;

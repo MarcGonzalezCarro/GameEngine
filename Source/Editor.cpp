@@ -265,6 +265,12 @@ bool Editor::PostUpdate()
     if (showConsole)
         DrawConsole();
 
+    if (showConfiguration)
+        DrawConfiguration();
+
+    if (showAbout)
+        DrawAbout();
+
     ImGui::Render();
 
     ImGui_ImplOpenGL3_RenderDrawData(
@@ -307,12 +313,97 @@ void Editor::DrawMainMenu()
 {
     if (ImGui::BeginMainMenuBar())
     {
-        if (ImGui::BeginMenu("Window"))
+        // ====================================================
+        // FILE
+        // ====================================================
+
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::MenuItem("Exit"))
+            {
+                SDL_Event event{};
+                event.type = SDL_EVENT_QUIT;
+                SDL_PushEvent(&event);
+            }
+
+            ImGui::EndMenu();
+        }
+
+        // ====================================================
+        // VIEW
+        // ====================================================
+
+        if (ImGui::BeginMenu("View"))
         {
             ImGui::MenuItem("Scene", nullptr, &showScene);
             ImGui::MenuItem("Hierarchy", nullptr, &showHierarchy);
             ImGui::MenuItem("Inspector", nullptr, &showInspector);
             ImGui::MenuItem("Console", nullptr, &showConsole);
+
+            ImGui::Separator();
+
+            ImGui::MenuItem(
+                "Configuration",
+                nullptr,
+                &showConfiguration
+            );
+
+            ImGui::MenuItem(
+                "About",
+                nullptr,
+                &showAbout
+            );
+
+            ImGui::EndMenu();
+        }
+
+        // ====================================================
+        // GEOMETRY
+        // ====================================================
+
+        if (ImGui::BeginMenu("Geometry"))
+        {
+            ImGui::MenuItem("Cube", nullptr, false, false);
+            ImGui::MenuItem("Sphere", nullptr, false, false);
+            ImGui::MenuItem("Plane", nullptr, false, false);
+            ImGui::MenuItem("Cylinder", nullptr, false, false);
+
+            ImGui::EndMenu();
+        }
+
+        // ====================================================
+        // HELP
+        // ====================================================
+
+        if (ImGui::BeginMenu("Help"))
+        {
+            if (ImGui::MenuItem("Documentation"))
+            {
+                SDL_OpenURL(
+                    "https://github.com/TU_REPOSITORIO/docs"
+                );
+            }
+
+            if (ImGui::MenuItem("Report a Bug"))
+            {
+                SDL_OpenURL(
+                    "https://github.com/TU_REPOSITORIO/issues"
+                );
+            }
+
+            if (ImGui::MenuItem("Download Latest"))
+            {
+                SDL_OpenURL(
+                    "https://github.com/TU_REPOSITORIO/releases"
+                );
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("About"))
+            {
+                showAbout = true;
+            }
 
             ImGui::EndMenu();
         }
@@ -431,6 +522,123 @@ void Editor::DrawHierarchyNode(GameObject& object)
 
         ImGui::TreePop();
     }
+}
+
+void Editor::DrawConfiguration()
+{
+    if (!showConfiguration)
+        return;
+
+    ImGui::Begin(
+        "Configuration",
+        &showConfiguration
+    );
+
+    // Pendiente de implementar:
+    // - FPS
+    // - Renderer configuration
+    // - Window configuration
+    // - Input configuration
+    // - Texture configuration
+    // - Hardware information
+    // - Memory usage
+    // - SDL3 / OpenGL / DevIL versions
+
+    ImGui::End();
+}
+
+void Editor::DrawAbout()
+{
+    if (!showAbout)
+        return;
+
+    ImGui::Begin(
+        "About",
+        &showAbout
+    );
+
+    ImGui::Spacing();
+
+    ImGui::SetWindowFontScale(1.5f);
+
+    ImGui::Text("MY ENGINE");
+
+    ImGui::SetWindowFontScale(1.0f);
+
+    ImGui::Separator();
+
+    ImGui::Spacing();
+
+    ImGui::Text("Version: 1.0");
+
+    ImGui::Text("Geometry Visualizer");
+
+    ImGui::Spacing();
+
+    ImGui::Separator();
+
+    // ========================================================
+    // TEAM
+    // ========================================================
+
+    if (ImGui::CollapsingHeader(
+        "Development Team",
+        ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::BulletText("Member 1 - GitHub");
+        ImGui::BulletText("Member 2 - GitHub");
+        ImGui::BulletText("Member 3 - GitHub");
+    }
+
+    // ========================================================
+    // LIBRARIES
+    // ========================================================
+
+    if (ImGui::CollapsingHeader(
+        "Third Party Libraries",
+        ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::BulletText("SDL3");
+        ImGui::BulletText("OpenGL");
+        ImGui::BulletText("GLM");
+        ImGui::BulletText("Assimp");
+        ImGui::BulletText("DevIL");
+        ImGui::BulletText("Dear ImGui");
+    }
+
+    // ========================================================
+    // LICENSE
+    // ========================================================
+
+    if (ImGui::CollapsingHeader("License"))
+    {
+        ImGui::TextWrapped(
+            "This project is licensed under the MIT License."
+        );
+
+        ImGui::Spacing();
+
+        ImGui::TextWrapped(
+            "Copyright (c) 2026"
+        );
+
+        if (ImGui::Button("View MIT License"))
+        {
+            SDL_OpenURL(
+                "https://opensource.org/license/mit"
+            );
+        }
+    }
+
+    ImGui::Spacing();
+
+    ImGui::Separator();
+
+    ImGui::TextDisabled(
+        "Geometry Visualizer - 2026"
+    );
+
+    ImGui::End();
 }
 
 void Editor::DrawInspector()
