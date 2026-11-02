@@ -1,22 +1,47 @@
 #include "Log.h"
+
 #include <iostream>
-#include <cstdarg>
-#include <cstdio>
-#include <string>
+#include <mutex>
+
+namespace
+{
+    std::vector<std::string> messages;
+    std::mutex logMutex;
+}
 
 void Log(const char file[], int line, const char* format, ...)
 {
-    static char tmpString1[4096];
-    static va_list ap;
+    char buffer[4096];
 
-    // Construct the string from variable arguments
-    va_start(ap, format);
-    vsnprintf(tmpString1, 4096, format, ap);
-    va_end(ap);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
 
-    // Construct the final log message
-    std::string logMessage = std::string("\n") + file + "(" + std::to_string(line) + ") : " + tmpString1;
+    std::string logMessage =
+        std::string(file) + "(" +
+        std::to_string(line) + ") : " +
+        buffer;
 
-    // Print the formatted string to the standard error stream
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        messages.push_back(logMessage);
+    }
+
+    // Mantener también la salida en terminal.
     std::cerr << logMessage << std::endl;
+}
+
+namespace Logger
+{
+    const std::vector<std::string>& GetMessages()
+    {
+        return messages;
+    }
+
+    void Clear()
+    {
+        std::lock_guard<std::mutex> lock(logMutex);
+        messages.clear();
+    }
 }

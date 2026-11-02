@@ -1442,14 +1442,15 @@ void Editor::DrawConsole()
     ImGui::Begin("Console");
 
     if (ImGui::Button("Clear"))
-        consoleLogs.clear();
+    {
+        Logger::Clear();
+    }
 
     ImGui::SameLine();
 
-    ImGui::Text(
-        "Messages: %zu",
-        consoleLogs.size()
-    );
+    const auto& messages = Logger::GetMessages();
+
+    ImGui::Text("Messages: %zu", messages.size());
 
     ImGui::Separator();
 
@@ -1460,13 +1461,15 @@ void Editor::DrawConsole()
         ImGuiWindowFlags_HorizontalScrollbar
     );
 
-    for (const std::string& message : consoleLogs)
+    for (const std::string& message : messages)
     {
         ImGui::TextUnformatted(message.c_str());
     }
 
     if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+    {
         ImGui::SetScrollHereY(1.0f);
+    }
 
     ImGui::EndChild();
 
