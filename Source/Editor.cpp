@@ -836,29 +836,27 @@ void Editor::DrawSceneWindow()
     sceneHovered = ImGui::IsWindowHovered();
     sceneFocused = ImGui::IsWindowFocused();
 
-    // Espacio disponible dentro de la ventana
+    
     ImVec2 available = ImGui::GetContentRegionAvail();
 
-    // Evitar dimensiones inválidas
-    int width = std::max(
-        1,
-        static_cast<int>(available.x)
-    );
-
-    int height = std::max(
-        1,
-        static_cast<int>(available.y)
-    );
+    
+    int width = std::max(1, static_cast<int>(available.x));
+    int height = std::max(1, static_cast<int>(available.y));
 
     auto& engine = Engine::GetInstance();
-     
+
+    
+    engine.editorCamera.SetAspectRatio(
+        static_cast<float>(width),
+        static_cast<float>(height)
+    );
 
     if (engine.render != nullptr)
     {
-        // Ajustar la resolución de la textura al viewport
+        
         engine.render->SetSceneViewportSize(width, height);
 
-        // Mostrar la textura OpenGL en ImGui
+        
         ImGui::Image(
             (ImTextureID)(intptr_t)engine.render->GetSceneTexture(),
             ImVec2(

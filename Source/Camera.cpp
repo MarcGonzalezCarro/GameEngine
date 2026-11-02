@@ -131,3 +131,11 @@ void Camera::updateCameraVectors()
     right = glm::normalize(glm::cross(front, worldUp));
     up = glm::normalize(glm::cross(right, front));
 }
+
+void Camera::SetAspectRatio(float width, float height)
+{
+    if (height <= 0.0f || width <= 0.0f)
+        return;
+
+    aspectRatio = width / height;
+}

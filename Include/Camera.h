@@ -62,7 +62,7 @@ public:
     void Focus(const glm::vec3& target, float distance = 5.0f);
     void ClearOrbitTarget();
     void UpdateOrbitPosition();
-
+    void SetAspectRatio(float width, float height);
 private:
     void updateCameraVectors();
 };
